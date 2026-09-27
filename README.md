@@ -29,7 +29,7 @@ Download and extract the repository ZIP, then double-click `MazeEscape.exe` in t
 - **Click**: start or resume
 - **R**: restart after escaping
 
-Find the green exit arch. Walls block the view; the flashlight is a short spotlight, and the timer stops when you escape. The route skill appears at the lower right while playing.
+Find the green exit arch. Walls block the view; the flashlight is a short spotlight, and the timer stops when you escape. Footsteps play as you move, with cues for the menu, route reveal, and escape. The route skill appears at the lower right while playing.
 
 ## Textures
 

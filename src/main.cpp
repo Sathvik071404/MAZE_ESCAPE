@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <GL/gl.h>
+#include <mmsystem.h>
 
 #include <algorithm>
 #include <array>
@@ -112,14 +113,17 @@ struct Game {
     HGLRC gl = nullptr;
     int width = 1280, height = 800;
     std::vector<std::string> map;
+    std::filesystem::path executableDirectory;
     GLsizei worldVertexCount = 0;
     GLsizei skyVertexCount = 0;
     GLsizei routeVertexCount = 0;
     float routeVisible = 0.0f, routeCooldown = 0.0f;
+    float stepDistance = 0.0f;
     float x = 0.0f, z = 0.0f;
     float yaw = ExitAngle, pitch = 0.0f;
     float elapsed = 0.0f;
     bool started = false, paused = false, won = false, mouseCaptured = false, running = true;
+    bool alternateFootstep = false;
     GLuint worldProgram = 0, skyProgram = 0, uiProgram = 0;
     GLuint worldVao = 0, worldVbo = 0, routeVao = 0, routeVbo = 0;
     GLuint skyVao = 0, skyVbo = 0, uiVao = 0, uiVbo = 0;
@@ -127,6 +131,11 @@ struct Game {
     GLint viewLoc = -1, projectionLoc = -1, modelLoc = -1, eyeLoc = -1, flashLoc = -1;
     GLint skyViewLoc = -1, skyProjectionLoc = -1, skyEyeLoc = -1, skySamplerLoc = -1;
 };
+
+void playSound(const Game& game, const wchar_t* filename) {
+    const auto path=game.executableDirectory/L"assets"/L"sounds"/filename;
+    PlaySoundW(path.c_str(),nullptr,SND_ASYNC|SND_FILENAME|SND_NODEFAULT);
+}
 
 template<class T>
 bool loadProc(T& target, const char* name) {
@@ -321,7 +330,8 @@ std::vector<Vertex> buildMaze(const Game& game) {
 bool loadMap(Game& game) {
     wchar_t path[MAX_PATH]{};
     GetModuleFileNameW(nullptr,path,MAX_PATH);
-    std::ifstream file(std::filesystem::path(path).parent_path()/L"assets"/L"maze.map");
+    game.executableDirectory=std::filesystem::path(path).parent_path();
+    std::ifstream file(game.executableDirectory/L"assets"/L"maze.map");
     if (!file) return false;
     std::string line;
     while (std::getline(file,line)) {
@@ -376,6 +386,7 @@ void restart(Game& game) {
     game.started=true;
     game.won=game.paused=false;
     game.routeVisible=game.routeCooldown=0.0f;
+    game.stepDistance=0.0f;
     captureMouse(game,true);
     SetFocus(game.window);
 }
@@ -383,6 +394,7 @@ void restart(Game& game) {
 void beginGame(Game& game) {
     game.started=true;
     game.paused=false;
+    playSound(game,L"menu.wav");
     captureMouse(game,true);
     SetFocus(game.window);
 }
@@ -392,7 +404,9 @@ void returnToMenu(Game& game) {
     game.yaw=ExitAngle;
     game.started=game.paused=game.won=false;
     game.routeVisible=game.routeCooldown=0.0f;
+    game.stepDistance=0.0f;
     captureMouse(game,false);
+    playSound(game,L"menu.wav");
 }
 
 void activateRoute(Game& game) {
@@ -440,6 +454,7 @@ void activateRoute(Game& game) {
     glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(Vertex)),vertices.data(),GL_DYNAMIC_DRAW);
     game.routeVertexCount=static_cast<GLsizei>(vertices.size());
     game.routeVisible=1.0f; game.routeCooldown=15.0f;
+    playSound(game,L"route.wav");
 }
 
 LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -461,7 +476,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         break;
     case WM_LBUTTONDOWN:
         if (!game->started) beginGame(*game);
-        else if (game->paused && !game->won) { game->paused=false; captureMouse(*game,true); }
+        else if (game->paused && !game->won) { game->paused=false; captureMouse(*game,true); playSound(*game,L"menu.wav"); }
         return 0;
     case WM_INPUT:
         if (game->mouseCaptured && !game->paused && !game->won) {
@@ -478,7 +493,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             if (wParam==VK_ESCAPE) {
                 if (!game->started) DestroyWindow(window);
                 else if (game->paused || game->won) returnToMenu(*game);
-                else { game->paused=true; captureMouse(*game,false); }
+                else { game->paused=true; captureMouse(*game,false); playSound(*game,L"menu.wav"); }
             } else if (!game->started && (wParam==VK_RETURN || wParam==VK_SPACE)) {
                 beginGame(*game);
             } else if (wParam=='R' && game->won) restart(*game);
@@ -787,14 +802,24 @@ void movePlayer(Game& game, float dt) {
     game.routeCooldown=std::max(0.0f,game.routeCooldown-dt);
     const float forward=(GetAsyncKeyState('W')<0?1.0f:0.0f)-(GetAsyncKeyState('S')<0?1.0f:0.0f);
     const float side=(GetAsyncKeyState('D')<0?1.0f:0.0f)-(GetAsyncKeyState('A')<0?1.0f:0.0f);
-    if (forward==0.0f && side==0.0f) { game.elapsed+=dt; return; }
+    if (forward==0.0f && side==0.0f) { game.stepDistance=0.0f; game.elapsed+=dt; return; }
     const float length=std::sqrt(forward*forward+side*side);
     const float f=forward/length, s=side/length;
-    const float speed=GetAsyncKeyState(VK_SHIFT)<0?4.6f:2.35f;
+    const bool sprinting=GetAsyncKeyState(VK_SHIFT)<0;
+    const float speed=sprinting?4.6f:2.35f;
     const float dx=(std::cos(game.yaw)*f-std::sin(game.yaw)*s)*speed*dt;
     const float dz=(std::sin(game.yaw)*f+std::cos(game.yaw)*s)*speed*dt;
+    const float oldX=game.x, oldZ=game.z;
     if (canStand(game,game.x+dx,game.z)) game.x+=dx;
     if (canStand(game,game.x,game.z+dz)) game.z+=dz;
+    game.stepDistance+=std::hypot(game.x-oldX,game.z-oldZ);
+    const float stepLength=sprinting?0.9f:0.68f;
+    if (game.stepDistance>=stepLength) {
+        game.stepDistance-=stepLength;
+        if (game.routeVisible<=0.0f)
+            playSound(game,game.alternateFootstep?L"step2.wav":L"step1.wav");
+        game.alternateFootstep=!game.alternateFootstep;
+    }
     game.elapsed+=dt;
 
     const float radius=std::hypot(game.x,game.z);
@@ -803,6 +828,7 @@ void movePlayer(Game& game, float dt) {
     if (radius>=15.45f && std::abs(delta)<0.12f) {
         game.won=true;
         captureMouse(game,false);
+        playSound(game,L"escape.wav");
     }
 }
 
