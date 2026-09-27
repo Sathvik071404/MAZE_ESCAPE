@@ -13,6 +13,10 @@ cmake --build build --config Release
 
 Run `build\Release\MazeEscape.exe` with a Visual Studio generator, or `build\MazeEscape.exe` with a single-configuration generator. CMake copies maze assets next to the executable.
 
+## Play from the GitHub ZIP
+
+Download and extract the repository ZIP, then double-click `MazeEscape.exe` in the extracted folder. Keep the `assets` folder beside the executable; it contains the maze and textures. No build tools are needed.
+
 ## Controls
 
 - **Enter / Space / Click**: start
