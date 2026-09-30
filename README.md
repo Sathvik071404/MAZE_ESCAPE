@@ -2,6 +2,12 @@
 
 A first-person OpenGL maze game built directly on Win32/WGL. `assets/maze.png` is rasterized into the walkable layout in `assets/maze.map`; the game generates its 3D wall mesh from that layout at startup.
 
+## Code graph
+
+This graph maps 156 code symbols and 262 extracted relationships across 8 communities. The [interactive graph](graphify-out/graph.html) and [graph data](graphify-out/graph.json) are also included.
+
+![Maze Escape code graph](graphify-out/graph.svg)
+
 ## Build and run
 
 Use a Windows C++ compiler and CMake:

@@ -1,0 +1,445 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+<title id="title">Maze Escape code graph</title>
+<desc id="desc">156 code symbols connected by 262 extracted relationships, grouped into 8 communities.</desc>
+<rect width="100%" height="100%" rx="22" fill="#0b1117"/>
+<text x="40" y="44" fill="#edf5f6" font-family="Segoe UI,Arial,sans-serif" font-size="25" font-weight="700">MAZE ESCAPE · CODE GRAPH</text>
+<text x="40" y="70" fill="#9aabb8" font-family="Segoe UI,Arial,sans-serif" font-size="14">156 symbols · 262 relationships · 8 communities</text>
+<line x1="383.5" y1="694.1" x2="273.1" y2="461.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="383.5" y1="694.1" x2="374.9" y2="668.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="297.5" y1="443.8" x2="273.1" y2="461.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="273.1" y1="461.3" x2="274.1" y2="477.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="273.1" y1="461.3" x2="268.7" y2="433.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="355.4" y1="678.0" x2="374.9" y2="668.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="355.4" y1="678.0" x2="366.9" y2="687.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="281.1" y1="441.9" x2="273.1" y2="461.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="281.1" y1="441.9" x2="254.2" y2="465.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="281.1" y1="441.9" x2="304.7" y2="464.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="281.1" y1="441.9" x2="297.5" y2="443.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="843.8" y1="217.6" x2="820.4" y2="250.7" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="827.4" y1="668.2" x2="819.4" y2="687.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="827.4" y1="215.6" x2="838.7" y2="202.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="827.4" y1="215.6" x2="851.0" y2="237.7" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="920.0" y1="455.0" x2="929.2" y2="484.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="920.0" y1="455.0" x2="908.7" y2="433.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="920.0" y1="455.0" x2="921.1" y2="441.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="920.0" y1="455.0" x2="281.1" y2="441.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="920.0" y1="455.0" x2="944.7" y2="464.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="920.0" y1="455.0" x2="901.7" y2="451.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="921.1" y1="441.9" x2="914.1" y2="477.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="908.7" y1="433.2" x2="937.5" y2="443.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="836.1" y1="241.5" x2="843.8" y2="217.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="836.1" y1="241.5" x2="374.9" y2="668.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="836.1" y1="241.5" x2="366.9" y2="687.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="808.0" y1="225.5" x2="261.7" y2="451.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="808.0" y1="225.5" x2="800.5" y2="239.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="808.0" y1="225.5" x2="836.1" y2="694.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="836.1" y1="694.1" x2="843.8" y2="670.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="836.1" y1="694.1" x2="827.4" y2="668.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="836.1" y1="694.1" x2="814.9" y2="659.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="836.1" y1="694.1" x2="819.4" y2="687.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="367.8" y1="703.3" x2="366.9" y2="687.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="391.3" y1="670.1" x2="366.9" y2="687.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="391.3" y1="670.1" x2="374.9" y2="668.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="687.6" x2="851.0" y2="690.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="687.6" x2="843.8" y2="670.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="261.7" y1="451.8" x2="304.7" y2="464.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="261.7" y1="451.8" x2="274.1" y2="477.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="261.7" y1="451.8" x2="268.7" y2="433.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="681.3" x2="355.4" y2="678.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="681.3" x2="366.9" y2="687.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="681.3" x2="374.9" y2="668.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="681.3" x2="391.3" y2="670.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="681.3" x2="367.8" y2="703.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="681.3" x2="383.5" y2="694.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="235.0" x2="836.1" y2="241.5" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="235.0" x2="808.0" y2="225.5" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="235.0" x2="366.9" y2="687.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="235.0" x2="814.9" y2="206.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="235.0" x2="827.4" y2="215.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="235.0" x2="920.0" y2="455.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="568.3" y2="84.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="601.1" y2="121.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="588.7" y2="113.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="612.5" y2="108.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="589.5" y2="192.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="572.1" y2="118.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="581.7" y2="131.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="543.0" y2="108.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="628.0" y2="91.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="642.2" y2="140.7" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="628.0" y2="107.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="564.2" y2="159.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="654.0" y2="130.5" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="660.9" y2="116.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="586.3" y2="71.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="628.4" y2="159.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="567.4" y2="190.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="609.8" y2="147.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="580.0" y2="163.5" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="595.4" y2="99.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="609.8" y2="91.5" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="557.8" y2="102.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="658.1" y2="150.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="593.1" y2="141.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="555.7" y2="120.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="600.3" y2="79.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="545.7" y2="162.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="598.1" y2="175.5" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="573.4" y2="103.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="621.4" y2="77.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="623.5" y2="192.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="644.3" y2="158.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="550.7" y2="148.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="638.0" y2="176.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="542.9" y2="129.7" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="574.2" y2="145.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="583.3" y2="88.7" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="562.6" y2="175.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="617.5" y2="123.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="594.1" y2="157.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="632.7" y2="127.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="561.7" y2="136.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="646.3" y2="99.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="622.7" y2="174.5" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="643.0" y2="115.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="581.3" y2="179.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="608.9" y2="186.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="913.1" y1="461.3" x2="952.7" y2="447.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="913.1" y1="461.3" x2="900.0" y2="483.5" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="913.1" y1="461.3" x2="915.4" y2="419.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="913.1" y1="461.3" x2="948.4" y2="479.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="913.1" y1="461.3" x2="881.7" y2="456.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="681.3" x2="800.5" y2="691.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="681.3" x2="838.7" y2="654.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="681.3" x2="835.5" y2="710.7" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="681.3" x2="798.4" y2="665.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="681.3" x2="859.0" y2="674.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="681.3" x2="806.3" y2="709.7" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="289.8" y1="467.8" x2="292.5" y2="428.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="289.8" y1="467.8" x2="289.2" y2="484.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="289.8" y1="467.8" x2="252.1" y2="438.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="609.2" y2="804.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="572.1" y2="758.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="632.7" y2="767.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="617.5" y2="763.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="594.1" y2="797.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="588.7" y2="753.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="593.1" y2="781.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="601.1" y2="761.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="609.8" y2="787.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="624.7" y2="784.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="581.7" y2="771.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="574.2" y2="785.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="775.0" x2="612.5" y2="748.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="362.4" y2="659.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="835.5" y2="258.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="609.2" y2="164.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="280.0" y2="455.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="894.2" y2="465.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="624.7" y2="144.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="929.8" y2="467.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="932.5" y2="428.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="297.5" y1="443.8" x2="600.0" y2="775.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="273.1" y1="461.3" x2="600.0" y2="775.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="281.1" y1="441.9" x2="600.0" y2="775.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="901.7" y1="451.8" x2="913.1" y2="461.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="827.4" y1="668.2" x2="826.3" y2="681.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="600.0" y1="135.0" x2="820.4" y2="703.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="843.8" y1="670.1" x2="826.3" y2="681.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="687.6" x2="826.3" y2="681.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="869.3" y2="208.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="788.0" y2="230.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="854.2" y2="200.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="824.4" y2="269.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="799.6" y2="196.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="790.5" y2="253.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="820.4" y2="703.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="280.0" y2="455.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="868.5" y2="234.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="848.9" y2="268.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="859.0" y2="221.5" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="808.0" y2="678.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="806.3" y2="257.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="821.6" y2="193.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="854.7" y2="252.7" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="383.5" y1="694.1" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="297.5" y1="443.8" x2="280.0" y2="455.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="273.1" y1="461.3" x2="289.8" y2="467.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="273.1" y1="461.3" x2="280.0" y2="455.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="820.4" y1="250.7" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="355.4" y1="678.0" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="281.1" y1="441.9" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="843.8" y1="217.6" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="366.9" y1="687.6" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="827.4" y1="668.2" x2="808.0" y2="678.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="827.4" y1="668.2" x2="820.4" y2="703.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="827.4" y1="668.2" x2="280.0" y2="455.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="937.5" y1="443.8" x2="892.1" y2="438.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="944.7" y1="464.0" x2="929.8" y2="467.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="827.4" y1="215.6" x2="798.4" y2="212.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="827.4" y1="215.6" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="274.1" y1="477.0" x2="289.8" y2="467.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="268.7" y1="433.2" x2="289.8" y2="467.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="920.0" y1="455.0" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="814.9" y1="206.9" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="914.1" y1="477.0" x2="894.2" y2="465.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="914.1" y1="477.0" x2="280.0" y2="455.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="851.0" y1="237.7" x2="782.0" y2="214.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="921.1" y1="441.9" x2="932.5" y2="428.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="921.1" y1="441.9" x2="894.2" y2="465.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="836.1" y1="241.5" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="304.7" y1="464.0" x2="289.8" y2="467.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="374.9" y1="668.2" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="374.9" y1="668.2" x2="383.0" y2="710.7" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="808.0" y1="225.5" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="836.1" y1="694.1" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="367.8" y1="703.3" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="391.3" y1="670.1" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="838.7" y1="202.1" x2="835.5" y2="258.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="843.8" y1="670.1" x2="808.0" y2="678.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="843.8" y1="670.1" x2="280.0" y2="455.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="687.6" x2="808.0" y2="678.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="687.6" x2="820.4" y2="703.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="687.6" x2="280.0" y2="455.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="261.7" y1="451.8" x2="289.8" y2="467.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="254.2" y1="465.6" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="681.3" x2="362.4" y2="659.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="681.3" x2="398.4" y2="690.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="681.3" x2="386.2" y2="654.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="681.3" x2="345.9" y2="665.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="235.0" x2="798.4" y2="212.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="819.4" y1="235.0" x2="836.1" y2="185.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="281.1" y1="441.9" x2="280.0" y2="455.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="901.7" y1="451.8" x2="280.0" y2="455.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="937.5" y1="443.8" x2="929.8" y2="467.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="921.1" y1="441.9" x2="929.8" y2="467.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="908.7" y1="433.2" x2="929.8" y2="467.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="800.5" y1="239.4" x2="808.0" y2="678.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="261.7" y1="451.8" x2="808.0" y2="678.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="681.3" x2="347.9" y2="691.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="355.4" y1="225.5" x2="373.7" y2="228.7" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="228.7" x2="383.5" y2="241.5" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="228.7" x2="374.9" y2="215.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="228.7" x2="391.3" y2="217.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="373.7" y1="228.7" x2="366.9" y2="235.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="600.0" y2="775.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="913.1" y2="461.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="826.3" y2="681.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="289.8" y2="467.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="600.0" y2="135.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="374.9" y2="668.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="851.0" y2="237.7" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="929.2" y2="484.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="937.5" y2="443.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="908.7" y2="433.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="304.7" y2="464.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="268.7" y2="433.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="274.1" y2="477.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="800.5" y2="239.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="261.7" y2="451.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="273.1" y2="461.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="297.5" y2="443.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="254.2" y2="465.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="281.1" y2="441.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="814.9" y2="206.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="820.4" y2="250.7" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="843.8" y2="217.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="814.9" y2="659.4" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="366.9" y2="687.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="367.8" y2="703.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="355.4" y2="678.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="391.3" y2="670.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="383.5" y2="694.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="373.7" y2="681.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="838.7" y2="202.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="827.4" y2="215.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="944.7" y2="464.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="914.1" y2="477.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="921.1" y2="441.9" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="901.7" y2="451.8" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="920.0" y2="455.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="836.1" y2="241.5" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="843.8" y2="670.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="851.0" y2="690.3" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="819.4" y2="687.6" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="827.4" y2="668.2" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="836.1" y2="694.1" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="808.0" y2="225.5" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<line x1="826.3" y1="228.7" x2="819.4" y2="235.0" stroke="#78909e" stroke-opacity="0.20" stroke-width="0.8"/>
+<text x="600.0" y="43.0" text-anchor="middle" fill="#56c2b8" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">Game · 50</text>
+<text x="826.3" y="136.7" text-anchor="middle" fill="#8e9eff" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">main.cpp · 27</text>
+<text x="920.0" y="363.0" text-anchor="middle" fill="#f2ae65" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">initializeRenderer · 18</text>
+<text x="826.3" y="589.3" text-anchor="middle" fill="#df7d9a" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">UiVertex · 15</text>
+<text x="600.0" y="683.0" text-anchor="middle" fill="#84c77c" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">Vertex · 14</text>
+<text x="373.7" y="589.3" text-anchor="middle" fill="#d08ce1" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">windowProc · 13</text>
+<text x="280.0" y="363.0" text-anchor="middle" fill="#55a8df" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">vector · 13</text>
+<text x="373.7" y="136.7" text-anchor="middle" fill="#dbce67" font-family="Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">Maze Escape · 6</text>
+<circle cx="600.0" cy="135.0" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>Game · Game · src/main.cpp L110</title></circle>
+<circle cx="913.1" cy="461.3" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>SkyVertex · initializeRenderer · src/main.cpp L106</title></circle>
+<circle cx="826.3" cy="681.3" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>UiVertex · UiVertex · src/main.cpp L107</title></circle>
+<circle cx="600.0" cy="775.0" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>Vertex · Vertex · src/main.cpp L100</title></circle>
+<circle cx="289.8" cy="467.8" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>Vec3 · vector · src/main.cpp L108</title></circle>
+<circle cx="820.4" cy="250.7" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>atFloor() · main.cpp · src/main.cpp L345</title></circle>
+<circle cx="843.8" cy="217.6" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>canStand() · main.cpp · src/main.cpp L355</title></circle>
+<circle cx="827.4" cy="215.6" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>createWindowAndContext() · main.cpp · src/main.cpp L535</title></circle>
+<circle cx="814.9" cy="206.9" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>loadMap() · main.cpp · src/main.cpp L330</title></circle>
+<circle cx="851.0" cy="237.7" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>loadProc() · main.cpp · src/main.cpp L141</title></circle>
+<circle cx="836.1" cy="241.5" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>movePlayer() · main.cpp · src/main.cpp L799</title></circle>
+<circle cx="800.5" cy="239.4" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>perspective() · main.cpp · src/main.cpp L214</title></circle>
+<circle cx="808.0" cy="225.5" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>render() · main.cpp · src/main.cpp L948</title></circle>
+<circle cx="838.7" cy="202.1" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>setPixelFormat() · main.cpp · src/main.cpp L525</title></circle>
+<circle cx="819.4" cy="235.0" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>WinMain() · main.cpp · src/main.cpp L987</title></circle>
+<circle cx="901.7" cy="451.8" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>buildSky() · initializeRenderer · src/main.cpp L723</title></circle>
+<circle cx="937.5" cy="443.8" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>compileShader() · initializeRenderer · src/main.cpp L167</title></circle>
+<circle cx="944.7" cy="464.0" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>configureVertexArray() · initializeRenderer · src/main.cpp L673</title></circle>
+<circle cx="920.0" cy="455.0" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>initializeRenderer() · initializeRenderer · src/main.cpp L742</title></circle>
+<circle cx="929.2" cy="484.4" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>loadGl() · initializeRenderer · src/main.cpp L152</title></circle>
+<circle cx="914.1" cy="477.0" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>loadPpm() · initializeRenderer · src/main.cpp L697</title></circle>
+<circle cx="921.1" cy="441.9" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>loadTexture() · initializeRenderer · src/main.cpp L707</title></circle>
+<circle cx="908.7" cy="433.2" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>makeProgram() · initializeRenderer · src/main.cpp L183</title></circle>
+<circle cx="827.4" cy="668.2" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>centeredText() · UiVertex · src/main.cpp L885</title></circle>
+<circle cx="814.9" cy="659.4" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>formatTime() · UiVertex · src/main.cpp L365</title></circle>
+<circle cx="851.0" cy="690.3" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>glyphIndex() · UiVertex · src/main.cpp L859</title></circle>
+<circle cx="836.1" cy="694.1" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>renderUi() · UiVertex · src/main.cpp L890</title></circle>
+<circle cx="843.8" cy="670.1" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>uiRect() · UiVertex · src/main.cpp L835</title></circle>
+<circle cx="819.4" cy="687.6" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>uiText() · UiVertex · src/main.cpp L865</title></circle>
+<circle cx="383.5" cy="694.1" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>activateRoute() · windowProc · src/main.cpp L412</title></circle>
+<circle cx="355.4" cy="678.0" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>beginGame() · windowProc · src/main.cpp L394</title></circle>
+<circle cx="366.9" cy="687.6" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>captureMouse() · windowProc · src/main.cpp L370</title></circle>
+<circle cx="374.9" cy="668.2" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>playSound() · windowProc · src/main.cpp L135</title></circle>
+<circle cx="367.8" cy="703.3" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>restart() · windowProc · src/main.cpp L383</title></circle>
+<circle cx="391.3" cy="670.1" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>returnToMenu() · windowProc · src/main.cpp L402</title></circle>
+<circle cx="373.7" cy="681.3" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>windowProc() · windowProc · src/main.cpp L460</title></circle>
+<circle cx="297.5" cy="443.8" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>addBox() · vector · src/main.cpp L261</title></circle>
+<circle cx="273.1" cy="461.3" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>addQuad() · vector · src/main.cpp L237</title></circle>
+<circle cx="281.1" cy="441.9" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>buildMaze() · vector · src/main.cpp L275</title></circle>
+<circle cx="274.1" cy="477.0" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>cross() · vector · src/main.cpp L210</title></circle>
+<circle cx="268.7" cy="433.2" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>dot() · vector · src/main.cpp L209</title></circle>
+<circle cx="304.7" cy="464.0" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>normalize() · vector · src/main.cpp L205</title></circle>
+<circle cx="261.7" cy="451.8" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>viewMatrix() · vector · src/main.cpp L224</title></circle>
+<circle cx="254.2" cy="465.6" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>wallAt() · vector · src/main.cpp L271</title></circle>
+<circle cx="624.7" cy="144.0" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>GLsizei · Game ·  </title></circle>
+<circle cx="609.2" cy="164.4" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>HGLRC · Game ·  </title></circle>
+<circle cx="593.1" cy="141.3" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>alternateFootstep · Game · src/main.cpp L126</title></circle>
+<circle cx="601.1" cy="121.9" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>dc · Game · src/main.cpp L112</title></circle>
+<circle cx="609.8" cy="147.8" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>elapsed · Game · src/main.cpp L124</title></circle>
+<circle cx="581.7" cy="131.8" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>executableDirectory · Game · src/main.cpp L116</title></circle>
+<circle cx="617.5" cy="123.8" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>eyeLoc · Game · src/main.cpp L131</title></circle>
+<circle cx="594.1" cy="157.0" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>flashLoc · Game · src/main.cpp L131</title></circle>
+<circle cx="588.7" cy="113.2" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>gl · Game · src/main.cpp L113</title></circle>
+<circle cx="574.2" cy="145.6" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>grassTexture · Game · src/main.cpp L130</title></circle>
+<circle cx="612.5" cy="108.4" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>height · Game · src/main.cpp L114</title></circle>
+<circle cx="572.1" cy="118.8" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>map · Game · src/main.cpp L115</title></circle>
+<circle cx="632.7" cy="127.8" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>modelLoc · Game · src/main.cpp L131</title></circle>
+<circle cx="580.0" cy="163.5" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>mouseCaptured · Game · src/main.cpp L125</title></circle>
+<circle cx="595.4" cy="99.3" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>paused · Game · src/main.cpp L125</title></circle>
+<circle cx="628.4" cy="159.0" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>pitch · Game · src/main.cpp L123</title></circle>
+<circle cx="561.7" cy="136.6" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>projectionLoc · Game · src/main.cpp L131</title></circle>
+<circle cx="628.0" cy="107.2" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>routeCooldown · Game · src/main.cpp L120</title></circle>
+<circle cx="598.1" cy="175.5" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>routeVao · Game · src/main.cpp L128</title></circle>
+<circle cx="573.4" cy="103.1" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>routeVbo · Game · src/main.cpp L128</title></circle>
+<circle cx="642.2" cy="140.7" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>routeVertexCount · Game · src/main.cpp L119</title></circle>
+<circle cx="564.2" cy="159.9" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>routeVisible · Game · src/main.cpp L120</title></circle>
+<circle cx="609.8" cy="91.5" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>running · Game · src/main.cpp L125</title></circle>
+<circle cx="622.7" cy="174.5" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>skyEyeLoc · Game · src/main.cpp L132</title></circle>
+<circle cx="555.7" cy="120.9" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>skyProgram · Game · src/main.cpp L127</title></circle>
+<circle cx="643.0" cy="115.1" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>skyProjectionLoc · Game · src/main.cpp L132</title></circle>
+<circle cx="581.3" cy="179.6" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>skySamplerLoc · Game · src/main.cpp L132</title></circle>
+<circle cx="583.3" cy="88.7" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>skyTexture · Game · src/main.cpp L130</title></circle>
+<circle cx="644.3" cy="158.3" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>skyVao · Game · src/main.cpp L129</title></circle>
+<circle cx="550.7" cy="148.0" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>skyVbo · Game · src/main.cpp L129</title></circle>
+<circle cx="628.0" cy="91.4" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>skyVertexCount · Game · src/main.cpp L118</title></circle>
+<circle cx="608.9" cy="186.8" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>skyViewLoc · Game · src/main.cpp L132</title></circle>
+<circle cx="557.8" cy="102.3" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>started · Game · src/main.cpp L125</title></circle>
+<circle cx="654.0" cy="130.5" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>stepDistance · Game · src/main.cpp L121</title></circle>
+<circle cx="562.6" cy="175.4" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>stoneTexture · Game · src/main.cpp L130</title></circle>
+<circle cx="600.3" cy="79.2" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>uiProgram · Game · src/main.cpp L127</title></circle>
+<circle cx="638.0" cy="176.9" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>uiVao · Game · src/main.cpp L129</title></circle>
+<circle cx="542.9" cy="129.7" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>uiVbo · Game · src/main.cpp L129</title></circle>
+<circle cx="646.3" cy="99.9" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>viewLoc · Game · src/main.cpp L131</title></circle>
+<circle cx="589.5" cy="192.9" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>width · Game · src/main.cpp L114</title></circle>
+<circle cx="568.3" cy="84.6" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>window · Game · src/main.cpp L111</title></circle>
+<circle cx="658.1" cy="150.9" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>won · Game · src/main.cpp L125</title></circle>
+<circle cx="545.7" cy="162.8" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>worldProgram · Game · src/main.cpp L127</title></circle>
+<circle cx="621.4" cy="77.2" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>worldVao · Game · src/main.cpp L128</title></circle>
+<circle cx="623.5" cy="192.8" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>worldVbo · Game · src/main.cpp L128</title></circle>
+<circle cx="543.0" cy="108.0" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>worldVertexCount · Game · src/main.cpp L117</title></circle>
+<circle cx="660.9" cy="116.2" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>x · Game · src/main.cpp L122</title></circle>
+<circle cx="567.4" cy="190.6" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>yaw · Game · src/main.cpp L123</title></circle>
+<circle cx="586.3" cy="71.4" r="5.3" fill="#56c2b8" fill-opacity="0.9"><title>z · Game · src/main.cpp L122</title></circle>
+<circle cx="835.5" cy="258.2" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>HDC · main.cpp ·  </title></circle>
+<circle cx="798.4" cy="212.6" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>HINSTANCE · main.cpp ·  </title></circle>
+<circle cx="836.1" cy="185.2" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>LPSTR · main.cpp ·  </title></circle>
+<circle cx="826.3" cy="228.7" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>main.cpp · main.cpp · src/main.cpp L1</title></circle>
+<circle cx="782.0" cy="214.6" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>T · main.cpp ·  </title></circle>
+<circle cx="892.1" cy="438.8" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>GLenum · initializeRenderer ·  </title></circle>
+<circle cx="932.5" cy="428.4" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>GLint · initializeRenderer ·  </title></circle>
+<circle cx="929.8" cy="467.8" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>GLuint · initializeRenderer ·  </title></circle>
+<circle cx="894.2" cy="465.6" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>path · initializeRenderer ·  </title></circle>
+<circle cx="952.7" cy="447.8" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>u · initializeRenderer · src/main.cpp L106</title></circle>
+<circle cx="900.0" cy="483.5" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>v · initializeRenderer · src/main.cpp L106</title></circle>
+<circle cx="915.4" cy="419.3" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>x · initializeRenderer · src/main.cpp L106</title></circle>
+<circle cx="948.4" cy="479.0" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>y · initializeRenderer · src/main.cpp L106</title></circle>
+<circle cx="881.7" cy="456.6" r="5.3" fill="#f2ae65" fill-opacity="0.9"><title>z · initializeRenderer · src/main.cpp L106</title></circle>
+<circle cx="808.0" cy="678.0" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>array · UiVertex ·  </title></circle>
+<circle cx="800.5" cy="691.9" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>a · UiVertex · src/main.cpp L107</title></circle>
+<circle cx="838.7" cy="654.6" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>b · UiVertex · src/main.cpp L107</title></circle>
+<circle cx="835.5" cy="710.7" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>g · UiVertex · src/main.cpp L107</title></circle>
+<circle cx="798.4" cy="665.1" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>r · UiVertex · src/main.cpp L107</title></circle>
+<circle cx="859.0" cy="674.1" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>x · UiVertex · src/main.cpp L107</title></circle>
+<circle cx="806.3" cy="709.7" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>y · UiVertex · src/main.cpp L107</title></circle>
+<circle cx="820.4" cy="703.3" r="5.3" fill="#df7d9a" fill-opacity="0.9"><title>string · UiVertex ·  </title></circle>
+<circle cx="593.1" cy="781.3" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>b · Vertex · src/main.cpp L103</title></circle>
+<circle cx="601.1" cy="761.9" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>emission · Vertex · src/main.cpp L103</title></circle>
+<circle cx="609.8" cy="787.8" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>g · Vertex · src/main.cpp L103</title></circle>
+<circle cx="581.7" cy="771.8" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>material · Vertex · src/main.cpp L104</title></circle>
+<circle cx="617.5" cy="763.8" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>nx · Vertex · src/main.cpp L102</title></circle>
+<circle cx="594.1" cy="797.0" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>ny · Vertex · src/main.cpp L102</title></circle>
+<circle cx="588.7" cy="753.2" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>nz · Vertex · src/main.cpp L102</title></circle>
+<circle cx="624.7" cy="784.0" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>r · Vertex · src/main.cpp L103</title></circle>
+<circle cx="574.2" cy="785.6" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>u · Vertex · src/main.cpp L104</title></circle>
+<circle cx="612.5" cy="748.4" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>v · Vertex · src/main.cpp L104</title></circle>
+<circle cx="609.2" cy="804.4" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>x · Vertex · src/main.cpp L101</title></circle>
+<circle cx="572.1" cy="758.8" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>y · Vertex · src/main.cpp L101</title></circle>
+<circle cx="632.7" cy="767.8" r="5.3" fill="#84c77c" fill-opacity="0.9"><title>z · Vertex · src/main.cpp L101</title></circle>
+<circle cx="362.4" cy="659.4" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>HWND · windowProc ·  </title></circle>
+<circle cx="398.4" cy="690.3" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>LPARAM · windowProc ·  </title></circle>
+<circle cx="347.9" cy="691.9" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>LRESULT · windowProc ·  </title></circle>
+<circle cx="386.2" cy="654.6" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>UINT · windowProc ·  </title></circle>
+<circle cx="383.0" cy="710.7" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>wchar_t · windowProc ·  </title></circle>
+<circle cx="345.9" cy="665.1" r="5.3" fill="#d08ce1" fill-opacity="0.9"><title>WPARAM · windowProc ·  </title></circle>
+<circle cx="292.5" cy="428.4" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>x · vector · src/main.cpp L108</title></circle>
+<circle cx="289.2" cy="484.4" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>y · vector · src/main.cpp L108</title></circle>
+<circle cx="252.1" cy="438.8" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>z · vector · src/main.cpp L108</title></circle>
+<circle cx="280.0" cy="455.0" r="5.3" fill="#55a8df" fill-opacity="0.9"><title>vector · vector ·  </title></circle>
+<circle cx="355.4" cy="225.5" r="5.3" fill="#dbce67" fill-opacity="0.9"><title>README.md · Maze Escape · README.md L1</title></circle>
+<circle cx="366.9" cy="235.0" r="5.3" fill="#dbce67" fill-opacity="0.9"><title>Build and run · Maze Escape · README.md L5</title></circle>
+<circle cx="374.9" cy="215.6" r="5.3" fill="#dbce67" fill-opacity="0.9"><title>Controls · Maze Escape · README.md L20</title></circle>
+<circle cx="373.7" cy="228.7" r="5.3" fill="#dbce67" fill-opacity="0.9"><title>Maze Escape · Maze Escape · README.md L1</title></circle>
+<circle cx="383.5" cy="241.5" r="5.3" fill="#dbce67" fill-opacity="0.9"><title>Play from the GitHub ZIP · Maze Escape · README.md L16</title></circle>
+<circle cx="391.3" cy="217.6" r="5.3" fill="#dbce67" fill-opacity="0.9"><title>Textures · Maze Escape · README.md L34</title></circle>
+<circle cx="859.0" cy="221.5" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>algorithm · main.cpp ·  </title></circle>
+<circle cx="806.3" cy="257.2" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>chrono · main.cpp ·  </title></circle>
+<circle cx="821.6" cy="193.0" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>cmath · main.cpp ·  </title></circle>
+<circle cx="854.7" cy="252.7" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>cstddef · main.cpp ·  </title></circle>
+<circle cx="788.0" cy="230.3" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>cstdint · main.cpp ·  </title></circle>
+<circle cx="854.2" cy="200.9" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>cstring · main.cpp ·  </title></circle>
+<circle cx="824.4" cy="269.2" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>filesystem · main.cpp ·  </title></circle>
+<circle cx="799.6" cy="196.8" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>fstream · main.cpp ·  </title></circle>
+<circle cx="868.5" cy="234.4" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>gl · main.cpp ·  </title></circle>
+<circle cx="790.5" cy="253.6" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>limits · main.cpp ·  </title></circle>
+<circle cx="848.9" cy="268.3" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>mmsystem · main.cpp ·  </title></circle>
+<circle cx="869.3" cy="208.8" r="5.3" fill="#8e9eff" fill-opacity="0.9"><title>windows · main.cpp ·  </title></circle>
+<text x="608.0" y="128.0" fill="#dbe6eb" font-family="Segoe UI,Arial,sans-serif" font-size="10">Game</text>
+<text x="834.3" y="221.7" fill="#dbe6eb" font-family="Segoe UI,Arial,sans-serif" font-size="10">main.cpp</text>
+<text x="608.0" y="768.0" fill="#dbe6eb" font-family="Segoe UI,Arial,sans-serif" font-size="10">Vertex</text>
+<text x="381.7" y="674.3" fill="#dbe6eb" font-family="Segoe UI,Arial,sans-serif" font-size="10">windowProc()</text>
+<text x="834.3" y="674.3" fill="#dbe6eb" font-family="Segoe UI,Arial,sans-serif" font-size="10">UiVertex</text>
+<text x="288.0" y="448.0" fill="#dbe6eb" font-family="Segoe UI,Arial,sans-serif" font-size="10">vector</text>
+<text x="297.8" y="460.8" fill="#dbe6eb" font-family="Segoe UI,Arial,sans-serif" font-size="10">Vec3</text>
+<text x="827.4" y="228.0" fill="#dbe6eb" font-family="Segoe UI,Arial,sans-serif" font-size="10">WinMain()</text>
+<text x="928.0" y="448.0" fill="#dbe6eb" font-family="Segoe UI,Arial,sans-serif" font-size="10">initializeRenderer()</text>
+<text x="827.4" y="680.6" fill="#dbe6eb" font-family="Segoe UI,Arial,sans-serif" font-size="10">uiText()</text>
+<text x="281.1" y="454.3" fill="#dbe6eb" font-family="Segoe UI,Arial,sans-serif" font-size="10">addQuad()</text>
+<text x="289.1" y="434.9" fill="#dbe6eb" font-family="Segoe UI,Arial,sans-serif" font-size="10">buildMaze()</text>
+</svg>
