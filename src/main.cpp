@@ -1617,7 +1617,9 @@ void drawModel(Game& game,const ModelObject& object,const std::array<float,16>& 
     glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
     glActiveTexture(GL_TEXTURE3);
     for (const ModelPart& part:object.parts) {
-        if (bodyOnly && part.material.find("Up")==std::string::npos && part.material.find("Down")==std::string::npos) continue;
+        if (bodyOnly && (part.material.find("Face")!=std::string::npos || part.material.find("Eye")!=std::string::npos ||
+                         part.material.find("Hair")!=std::string::npos || part.material.find("Bangs")!=std::string::npos ||
+                         part.material.find("MazeFlashlight")!=std::string::npos)) continue;
         glBindTexture(GL_TEXTURE_2D,part.texture);
         glDrawArrays(GL_TRIANGLES,part.first,part.count);
     }
@@ -1662,10 +1664,10 @@ void render(Game& game) {
         heldForward={std::cos(game.yaw)*cp,std::sin(game.pitch),std::sin(game.yaw)*cp};
         heldRight=normalize(cross(heldForward,{0.0f,1.0f,0.0f}));
         heldUp=cross(heldRight,heldForward);
-        const Vec3 hand{game.x-characterRight.x*0.134f+characterForward.x*0.305f,
+        const Vec3 hand{game.x-characterRight.x*0.134f+characterForward.x*0.236f,
                         1.063f+modelBob,
-                        game.z-characterRight.z*0.134f+characterForward.z*0.305f};
-        heldOrigin={hand.x+heldForward.x*0.10f,hand.y+heldForward.y*0.10f,hand.z+heldForward.z*0.10f};
+                        game.z-characterRight.z*0.134f+characterForward.z*0.236f};
+        heldOrigin={hand.x+heldForward.x*0.169f,hand.y+heldForward.y*0.169f,hand.z+heldForward.z*0.169f};
     }
     // Rotate the flashlight across the palm for a reverse grip without turning the beam away.
     heldRight={-heldRight.x,-heldRight.y,-heldRight.z};
