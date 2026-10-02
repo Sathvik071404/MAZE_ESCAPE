@@ -70,3 +70,12 @@ Ni 1.500000
 d 1.000000
 illum 2
 map_Kd textures/T_R2T1QianXiaMd10011Up_D.png
+
+newmtl MazeFlashlight
+Ns 12
+Ka 1 1 1
+Kd 0.8 0.8 0.8
+Ks 0.2 0.2 0.2
+d 1
+illum 2
+map_Kd ../flashlight/Diffuse.png

@@ -1051,7 +1051,7 @@ void main() {
     if (vMaterial > 3.5) {
         vec4 texel=texture(uCharacter,vUv);
         if (texel.a<0.18) discard;
-        albedo*=texel.rgb;
+        albedo*=pow(max(texel.rgb,vec3(0.0)),vec3(0.58));
         alpha=texel.a;
     }
     if (vMaterial < 0.5) albedo *= texture(uGrass, vUv).rgb;
@@ -1069,7 +1069,7 @@ void main() {
         vec3 moss = vec3(0.07,0.24,0.045)*(0.8+0.6*grass.g);
         albedo = mix(grayStone,moss,grassCoverage);
     }
-    float ambient = vMaterial > 3.5 ? 0.68 : (vMaterial < 0.5 ? 0.018 : 0.009);
+    float ambient = vMaterial > 3.5 ? 0.82 : (vMaterial < 0.5 ? 0.018 : 0.009);
     vec3 lit = albedo * (ambient + spot*(1.05 + 1.25*diffuse)*attenuation) + vColor*vEmission;
     float fog = smoothstep(10.0, 18.0, distanceToEye);
     vec3 color=mix(lit, vec3(0.001,0.002,0.006), fog);
@@ -1720,9 +1720,11 @@ void render(Game& game) {
         const Vec3 modelBack{-forward.x,0.0f,-forward.z};
         const auto characterTransform=basisTransform(right,modelBack,up,{game.x,modelBob,game.z},1.0f);
         if (game.thirdPerson) drawModel(game,actor,characterTransform);
-        else drawModel(game,actor,characterTransform,true);
-        const auto heldLight=basisTransform(heldRight,heldUp,heldForward,heldOrigin,heldScale);
-        drawModel(game,game.flashlight,heldLight);
+        else {
+            drawModel(game,actor,characterTransform,true);
+            const auto heldLight=basisTransform(heldRight,heldUp,heldForward,heldOrigin,heldScale);
+            drawModel(game,game.flashlight,heldLight);
+        }
     }
     renderUi(game);
     SwapBuffers(game.dc);
