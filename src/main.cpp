@@ -155,6 +155,7 @@ struct Game {
     float stepDistance = 0.0f;
     float x = 0.0f, z = 0.0f;
     float yaw = ExitAngle, pitch = 0.0f;
+    float cameraYaw = ExitAngle, cameraPitch = -0.18f;
     float elapsed = 0.0f;
     bool started = false, paused = false, won = false, mouseCaptured = false, running = true;
     bool showSettings = false, settingsFromPause = false, soundEnabled = true, thirdPerson = false;
@@ -577,6 +578,17 @@ bool loadMap(Game& game) {
     return generateMaze(game);
 }
 
+void regenerateMaze(Game& game) {
+    if (!generateMaze(game)) return;
+    game.routeVertexCount=0;
+    if (!game.worldVao || !game.worldVbo) return;
+    const auto vertices=buildMaze(game);
+    game.worldVertexCount=static_cast<GLsizei>(vertices.size());
+    glBindVertexArray(game.worldVao);
+    glBindBuffer(GL_ARRAY_BUFFER,game.worldVbo);
+    glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(Vertex)),vertices.data(),GL_STATIC_DRAW);
+}
+
 bool atFloor(const Game& game, float x, float z) {
     const int col=static_cast<int>(std::floor((HalfMaze-x)/Cell));
     const int row=static_cast<int>(std::floor((HalfMaze-z)/Cell));
@@ -626,9 +638,23 @@ void captureMouse(Game& game, bool capture) {
     }
 }
 
+void setCameraMode(Game& game, bool thirdPerson) {
+    if (game.thirdPerson==thirdPerson) return;
+    if (thirdPerson) {
+        game.cameraYaw=game.yaw;
+        game.cameraPitch=std::clamp(game.pitch-0.18f,-0.70f,0.25f);
+    } else {
+        game.yaw=game.cameraYaw;
+        game.pitch=std::clamp(game.cameraPitch,-1.35f,1.35f);
+    }
+    game.thirdPerson=thirdPerson;
+}
+
 void restart(Game& game) {
+    regenerateMaze(game);
     game.x=game.z=game.pitch=game.elapsed=0.0f;
     game.yaw=ExitAngle;
+    game.cameraYaw=game.yaw; game.cameraPitch=-0.18f;
     game.started=true;
     game.won=game.paused=false;
     game.routeVisible=game.routeCooldown=0.0f;
@@ -648,8 +674,10 @@ void beginGame(Game& game) {
 }
 
 void returnToMenu(Game& game) {
+    regenerateMaze(game);
     game.x=game.z=game.pitch=game.elapsed=0.0f;
     game.yaw=ExitAngle;
+    game.cameraYaw=game.yaw; game.cameraPitch=-0.18f;
     game.started=game.paused=game.won=false;
     game.routeVisible=game.routeCooldown=0.0f;
     game.stepDistance=0.0f;
@@ -823,7 +851,7 @@ void adjustSetting(Game& game,int direction) {
         game.contrast=std::round(game.contrast*10.0f)/10.0f;
         break;
     case 3: game.soundEnabled=direction>0; break;
-    case 4: game.thirdPerson=direction>0; break;
+    case 4: setCameraMode(game,direction>0); break;
     case 5: closeSettings(game); return;
     }
     saveSettings(game);
@@ -856,8 +884,15 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             RAWINPUT input{};
             UINT size=sizeof(input);
             if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam),RID_INPUT,&input,&size,sizeof(RAWINPUTHEADER))==size && input.header.dwType==RIM_TYPEMOUSE) {
-                game->yaw += input.data.mouse.lLastX*0.0025f;
-                game->pitch=std::clamp(game->pitch-input.data.mouse.lLastY*0.0025f,-1.35f,1.35f);
+                if (game->thirdPerson) {
+                    game->cameraYaw += input.data.mouse.lLastX*0.0025f;
+                    game->cameraPitch=std::clamp(game->cameraPitch-input.data.mouse.lLastY*0.0025f,-0.70f,0.25f);
+                } else {
+                    game->yaw += input.data.mouse.lLastX*0.0025f;
+                    game->pitch=std::clamp(game->pitch-input.data.mouse.lLastY*0.0025f,-1.35f,1.35f);
+                    game->cameraYaw=game->yaw;
+                    game->cameraPitch=game->pitch-0.18f;
+                }
             }
         }
         return 0;
@@ -871,7 +906,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 else if (wParam==VK_RIGHT) adjustSetting(*game,1);
                 else if (wParam==VK_RETURN || wParam==VK_SPACE) {
                     if (game->settingsIndex==3) { game->soundEnabled=!game->soundEnabled; saveSettings(*game); }
-                    else if (game->settingsIndex==4) { game->thirdPerson=!game->thirdPerson; saveSettings(*game); }
+                    else if (game->settingsIndex==4) { setCameraMode(*game,!game->thirdPerson); saveSettings(*game); }
                     else if (game->settingsIndex==5) closeSettings(*game);
                 }
             } else if (wParam==VK_ESCAPE) {
@@ -883,6 +918,10 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             } else if (!game->started && (wParam==VK_RETURN || wParam==VK_SPACE)) {
                 beginGame(*game);
             } else if (wParam=='R' && game->won) restart(*game);
+            else if (wParam==VK_TAB && game->started && !game->paused && !game->won) {
+                setCameraMode(*game,!game->thirdPerson);
+                saveSettings(*game);
+            }
             else if (wParam=='O') activateRoute(*game);
         }
         return 0;
@@ -1030,7 +1069,7 @@ void main() {
         vec3 moss = vec3(0.07,0.24,0.045)*(0.8+0.6*grass.g);
         albedo = mix(grayStone,moss,grassCoverage);
     }
-    float ambient = vMaterial > 3.5 ? 0.30 : (vMaterial < 0.5 ? 0.018 : 0.009);
+    float ambient = vMaterial > 3.5 ? 0.68 : (vMaterial < 0.5 ? 0.018 : 0.009);
     vec3 lit = albedo * (ambient + spot*(1.05 + 1.25*diffuse)*attenuation) + vColor*vEmission;
     float fog = smoothstep(10.0, 18.0, distanceToEye);
     vec3 color=mix(lit, vec3(0.001,0.002,0.006), fog);
@@ -1382,6 +1421,9 @@ void movePlayer(Game& game, float dt) {
         game.elapsed+=dt;
         return;
     }
+    if (game.thirdPerson) {
+        game.cameraYaw=game.yaw;
+    }
     const float length=std::sqrt(forward*forward+side*side);
     const float f=forward/length, s=side/length;
     const bool sprinting=GetAsyncKeyState(VK_SHIFT)<0;
@@ -1411,8 +1453,9 @@ void movePlayer(Game& game, float dt) {
     const float radius=std::hypot(game.x,game.z);
     const float angle=std::atan2(game.z,game.x);
     const float delta=std::atan2(std::sin(angle-ExitAngle),std::cos(angle-ExitAngle));
-    if (radius>=OuterRadius+0.40f && std::abs(delta)<0.12f) {
+    if (radius>=OuterRadius+0.10f && std::abs(delta)*OuterRadius<=DoorHalfWidth+0.45f) {
         game.won=true;
+        regenerateMaze(game);
         captureMouse(game,false);
         playSound(game,L"escape.wav");
     }
@@ -1532,13 +1575,14 @@ void renderUi(Game& game) {
         centeredText(vertices,w,h,"S SETTINGS",h*0.5f+46,1.5f,cyan);
         centeredText(vertices,w,h,"ESC TO TITLE",h*0.5f+78,1.35f,white);
     } else {
-        uiRect(vertices,w,h,16,16,208,122,{0.004f,0.010f,0.016f,0.72f});
+        uiRect(vertices,w,h,16,16,208,143,{0.004f,0.010f,0.016f,0.72f});
         uiText(vertices,w,h,"MAZE ESCAPE",28,26,1.7f,cyan);
         char timeText[32]{}; formatTime(game.elapsed,timeText);
         uiText(vertices,w,h,std::string("TIME ")+timeText,28,47,1.7f,white);
         uiText(vertices,w,h,"WASD MOVE",28,73,1.25f,white);
         uiText(vertices,w,h,"MOUSE LOOK",28,92,1.25f,white);
         uiText(vertices,w,h,"SHIFT SPRINT",28,109,1.25f,white);
+        uiText(vertices,w,h,"TAB CAMERA",28,128,1.25f,white);
         const float skillX=std::max(12.0f,w-174.0f), skillY=static_cast<float>(h)-68.0f;
         uiRect(vertices,w,h,skillX,skillY,162,52,{0.004f,0.010f,0.016f,0.78f});
         uiText(vertices,w,h,"ROUTE",skillX+12,skillY+8,1.15f,cyan);
@@ -1584,19 +1628,23 @@ void render(Game& game) {
     glViewport(0,0,game.width,game.height);
     glClearColor(0.004f,0.007f,0.012f,1.0f);
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-    float cameraYaw=game.yaw, cameraPitch=game.pitch;
+    float cameraYaw=game.thirdPerson?game.cameraYaw:game.yaw;
+    float cameraPitch=game.thirdPerson?game.cameraPitch:game.pitch;
     const float bob=std::sin(game.walkPhase*2.0f)*0.025f*game.walking;
     const float modelBob=std::sin(game.walkPhase*2.0f)*0.018f*game.walking;
     Vec3 eye{game.x,1.38f+bob,game.z};
     if (game.thirdPerson && game.started) {
-        const float forwardX=std::cos(game.yaw), forwardZ=std::sin(game.yaw);
+        const float cp=std::cos(cameraPitch);
+        const Vec3 target{game.x,1.05f+modelBob,game.z};
         float distance=0.0f;
         for (float candidate=0.025f;candidate<=2.25f;candidate+=0.025f) {
-            if (!canStand(game,game.x-forwardX*candidate,game.z-forwardZ*candidate)) break;
+            const float horizontal=cp*candidate;
+            if (!canStand(game,game.x-std::cos(cameraYaw)*horizontal,game.z-std::sin(cameraYaw)*horizontal)) break;
             distance=candidate;
         }
-        eye={game.x-forwardX*distance,1.62f,game.z-forwardZ*distance};
-        cameraPitch=std::clamp(game.pitch-0.18f,-1.15f,1.15f);
+        eye={target.x-std::cos(cameraYaw)*cp*distance,
+             target.y-std::sin(cameraPitch)*distance,
+             target.z-std::sin(cameraYaw)*cp*distance};
     }
     const float cp=std::cos(game.pitch);
     const Vec3 flash{std::cos(game.yaw)*cp,std::sin(game.pitch),std::sin(game.yaw)*cp};
