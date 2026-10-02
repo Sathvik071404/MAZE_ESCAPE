@@ -1,6 +1,8 @@
 #include <windows.h>
+#include <objidl.h>
 #include <GL/gl.h>
 #include <mmsystem.h>
+#include <gdiplus.h>
 
 #include <algorithm>
 #include <array>
@@ -11,8 +13,15 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <limits>
+#include <map>
+#include <queue>
+#include <random>
+#include <sstream>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #ifndef GL_ARRAY_BUFFER
@@ -29,10 +38,14 @@
 #define GL_TEXTURE0 0x84C0
 #define GL_TEXTURE1 0x84C1
 #define GL_TEXTURE2 0x84C2
+#define GL_TEXTURE3 0x84C3
 #endif
 #ifndef GL_CLAMP_TO_EDGE
 #define GL_CLAMP_TO_EDGE 0x812F
 #define GL_LINEAR_MIPMAP_LINEAR 0x2703
+#endif
+#ifndef GL_BGRA
+#define GL_BGRA 0x80E1
 #endif
 
 using GLchar = char;
@@ -54,6 +67,7 @@ using GetUniformLocation = GLint(APIENTRY*)(GLuint, const GLchar*);
 using UniformMatrix4fv = void(APIENTRY*)(GLint, GLsizei, GLboolean, const GLfloat*);
 using Uniform3f = void(APIENTRY*)(GLint, GLfloat, GLfloat, GLfloat);
 using Uniform1i = void(APIENTRY*)(GLint, GLint);
+using Uniform1f = void(APIENTRY*)(GLint, GLfloat);
 using ActiveTexture = void(APIENTRY*)(GLenum);
 using GenerateMipmap = void(APIENTRY*)(GLenum);
 using GenVertexArrays = void(APIENTRY*)(GLsizei, GLuint*);
@@ -81,6 +95,7 @@ GetUniformLocation glGetUniformLocation;
 UniformMatrix4fv glUniformMatrix4fv;
 Uniform3f glUniform3f;
 Uniform1i glUniform1i;
+Uniform1f glUniform1f;
 ActiveTexture glActiveTexture;
 GenerateMipmap glGenerateMipmap;
 GenVertexArrays glGenVertexArrays;
@@ -106,6 +121,8 @@ struct Vertex {
 struct SkyVertex { float x, y, z, u, v; };
 struct UiVertex { float x, y, r, g, b, a; };
 struct Vec3 { float x, y, z; };
+struct ModelPart { GLsizei first = 0, count = 0; GLuint texture = 0; };
+struct ModelObject { GLuint vao = 0, vbo = 0; std::vector<ModelPart> parts; bool loaded = false; };
 
 struct Game {
     HWND window = nullptr;
@@ -114,6 +131,7 @@ struct Game {
     int width = 1280, height = 800;
     std::vector<std::string> map;
     std::filesystem::path executableDirectory;
+    std::filesystem::path settingsPath;
     GLsizei worldVertexCount = 0;
     GLsizei skyVertexCount = 0;
     GLsizei routeVertexCount = 0;
@@ -123,16 +141,23 @@ struct Game {
     float yaw = ExitAngle, pitch = 0.0f;
     float elapsed = 0.0f;
     bool started = false, paused = false, won = false, mouseCaptured = false, running = true;
+    bool showSettings = false, settingsFromPause = false, soundEnabled = true, thirdPerson = false;
+    int settingsIndex = 0, resolutionIndex = 1;
+    float brightness = 1.0f, contrast = 1.0f;
     bool alternateFootstep = false;
     GLuint worldProgram = 0, skyProgram = 0, uiProgram = 0;
     GLuint worldVao = 0, worldVbo = 0, routeVao = 0, routeVbo = 0;
     GLuint skyVao = 0, skyVbo = 0, uiVao = 0, uiVbo = 0;
+    ModelObject character, flashlight;
     GLuint grassTexture = 0, stoneTexture = 0, skyTexture = 0;
     GLint viewLoc = -1, projectionLoc = -1, modelLoc = -1, eyeLoc = -1, flashLoc = -1;
+    GLint brightnessLoc = -1, contrastLoc = -1;
     GLint skyViewLoc = -1, skyProjectionLoc = -1, skyEyeLoc = -1, skySamplerLoc = -1;
+    GLint skyBrightnessLoc = -1, skyContrastLoc = -1;
 };
 
 void playSound(const Game& game, const wchar_t* filename) {
+    if (!game.soundEnabled) return;
     const auto path=game.executableDirectory/L"assets"/L"sounds"/filename;
     PlaySoundW(path.c_str(),nullptr,SND_ASYNC|SND_FILENAME|SND_NODEFAULT);
 }
@@ -156,7 +181,7 @@ bool loadGl() {
     LOAD_GL(CreateProgram); LOAD_GL(AttachShader); LOAD_GL(LinkProgram);
     LOAD_GL(GetProgramiv); LOAD_GL(GetProgramInfoLog); LOAD_GL(UseProgram);
     LOAD_GL(DeleteProgram); LOAD_GL(GetUniformLocation); LOAD_GL(UniformMatrix4fv);
-    LOAD_GL(Uniform3f); LOAD_GL(Uniform1i); LOAD_GL(ActiveTexture); LOAD_GL(GenerateMipmap);
+    LOAD_GL(Uniform3f); LOAD_GL(Uniform1i); LOAD_GL(Uniform1f); LOAD_GL(ActiveTexture); LOAD_GL(GenerateMipmap);
     LOAD_GL(GenVertexArrays); LOAD_GL(BindVertexArray);
     LOAD_GL(GenBuffers); LOAD_GL(BindBuffer); LOAD_GL(BufferData);
     LOAD_GL(EnableVertexAttribArray); LOAD_GL(VertexAttribPointer);
@@ -327,19 +352,140 @@ std::vector<Vertex> buildMaze(const Game& game) {
     return out;
 }
 
+bool generateMaze(Game& game) {
+    struct CellNode { int ring, sector; };
+    constexpr int RingCount=15;
+    auto sectorsForRing=[](int ring) {
+        if (ring==0) return 1;
+        if (ring<=2) return 8*ring;
+        if (ring<=4) return 32;
+        if (ring<=8) return 64;
+        return 128;
+    };
+    std::vector<CellNode> nodes{{0,0}};
+    std::vector<std::vector<int>> rings(RingCount+1);
+    rings[0].push_back(0);
+    for (int ring=1;ring<=RingCount;++ring) {
+        const int sectors=sectorsForRing(ring);
+        rings[ring].reserve(sectors);
+        for (int sector=0;sector<sectors;++sector) {
+            rings[ring].push_back(static_cast<int>(nodes.size()));
+            nodes.push_back({ring,sector});
+        }
+    }
+    std::vector<std::vector<int>> graph(nodes.size());
+    auto connect=[&](int a,int b) { graph[a].push_back(b); graph[b].push_back(a); };
+    for (int ring=1;ring<=RingCount;++ring) {
+        const int sectors=sectorsForRing(ring);
+        for (int sector=0;sector<sectors;++sector) {
+            connect(rings[ring][sector],rings[ring][(sector+1)%sectors]);
+            if (ring==1) connect(rings[0][0],rings[ring][sector]);
+            else {
+                const int innerSectors=sectorsForRing(ring-1);
+                const float center=(static_cast<float>(sector)+0.5f)/sectors;
+                const int parent=std::min(innerSectors-1,static_cast<int>(center*innerSectors));
+                connect(rings[ring][sector],rings[ring-1][parent]);
+            }
+        }
+    }
+
+    std::random_device randomDevice;
+    std::mt19937 random(randomDevice());
+    std::vector<std::vector<int>> passages(nodes.size());
+    std::vector<uint8_t> visited(nodes.size(),0);
+    std::vector<int> stack{0};
+    visited[0]=1;
+    while (!stack.empty()) {
+        const int current=stack.back();
+        std::vector<int> choices;
+        for (int next:graph[current]) if (!visited[next]) choices.push_back(next);
+        if (choices.empty()) { stack.pop_back(); continue; }
+        std::shuffle(choices.begin(),choices.end(),random);
+        const int next=choices.back();
+        visited[next]=1;
+        passages[current].push_back(next);
+        passages[next].push_back(current);
+        stack.push_back(next);
+    }
+    if (std::find(visited.begin(),visited.end(),uint8_t{0})!=visited.end()) return false;
+
+    constexpr float CenterRadius=0.45f, RadialStep=0.97f;
+    constexpr float WallHalfThickness=0.055f, DoorHalfWidth=0.29f;
+    const float outerRadius=CenterRadius+RadialStep*RingCount;
+    auto wrap=[&](float angle) { return std::atan2(std::sin(angle),std::cos(angle)); };
+    auto hasPassage=[&](int a,int b) {
+        const auto& edges=passages[a];
+        return std::find(edges.begin(),edges.end(),b)!=edges.end();
+    };
+    game.map.assign(MapSize,std::string(MapSize,'#'));
+    for (int row=0;row<MapSize;++row) for (int col=0;col<MapSize;++col) {
+        const float x=HalfMaze-(col+0.5f)*Cell;
+        const float z=HalfMaze-(row+0.5f)*Cell;
+        const float radius=std::hypot(x,z), angle=std::atan2(z,x);
+        bool floor=false;
+        if (radius>=outerRadius) {
+            floor=std::abs(wrap(angle-ExitAngle))*outerRadius<DoorHalfWidth && radius<outerRadius+0.26f;
+        } else if (radius<CenterRadius) {
+            floor=true;
+        } else {
+            const int ring=std::clamp(static_cast<int>(std::ceil((radius-CenterRadius)/RadialStep)),1,RingCount);
+            const int sectors=sectorsForRing(ring);
+            float turn=angle/(2.0f*Pi);
+            if (turn<0.0f) turn+=1.0f;
+            const float sectorPosition=turn*sectors;
+            const int sector=std::min(sectors-1,static_cast<int>(sectorPosition));
+            const int cellId=rings[ring][sector];
+            floor=true;
+
+            for (int boundary=0;boundary<RingCount;++boundary) {
+                const float boundaryRadius=CenterRadius+boundary*RadialStep;
+                if (std::abs(radius-boundaryRadius)>=WallHalfThickness) continue;
+                const int outerRing=boundary+1;
+                const int outerSectors=sectorsForRing(outerRing);
+                const int outerSector=std::min(outerSectors-1,static_cast<int>(turn*outerSectors));
+                const int outerId=rings[outerRing][outerSector];
+                const float outerCenter=(outerSector+0.5f)*2.0f*Pi/outerSectors;
+                const int innerSectors=sectorsForRing(boundary);
+                const int parentSector=std::min(innerSectors-1,static_cast<int>((outerSector+0.5f)*innerSectors/outerSectors));
+                const int innerId=rings[boundary][parentSector];
+                if (!hasPassage(outerId,innerId) || std::abs(wrap(angle-outerCenter))*boundaryRadius>=DoorHalfWidth)
+                    floor=false;
+                break;
+            }
+
+            const float fraction=sectorPosition-std::floor(sectorPosition);
+            const float angularDistance=std::min(fraction,1.0f-fraction)*(2.0f*Pi*radius/sectors);
+            if (ring>0 && angularDistance<WallHalfThickness) {
+                const int edgeBefore=(fraction<0.5f?(sector+sectors-1)%sectors:sector);
+                const int other=(edgeBefore+1)%sectors;
+                const int edgeA=rings[ring][edgeBefore], edgeB=rings[ring][other];
+                const float middleRadius=CenterRadius+(ring-0.5f)*RadialStep;
+                if (!hasPassage(edgeA,edgeB) || std::abs(radius-middleRadius)>DoorHalfWidth)
+                    floor=false;
+            }
+        }
+        if (radius>=outerRadius-WallHalfThickness && radius<outerRadius+WallHalfThickness) {
+            if (std::abs(wrap(angle-ExitAngle))*outerRadius>=DoorHalfWidth) floor=false;
+        }
+        game.map[row][col]=floor?'.':'#';
+    }
+    return game.map.size()==MapSize && std::all_of(game.map.begin(),game.map.end(),[](const std::string& row){return row.size()==MapSize;});
+}
+
 bool loadMap(Game& game) {
     wchar_t path[MAX_PATH]{};
     GetModuleFileNameW(nullptr,path,MAX_PATH);
     game.executableDirectory=std::filesystem::path(path).parent_path();
-    std::ifstream file(game.executableDirectory/L"assets"/L"maze.map");
-    if (!file) return false;
-    std::string line;
-    while (std::getline(file,line)) {
-        if (!line.empty() && line.back()=='\r') line.pop_back();
-        if (!line.empty()) game.map.push_back(line);
-    }
-    if (game.map.size()!=MapSize) return false;
-    return std::all_of(game.map.begin(),game.map.end(),[](const std::string& row){return row.size()==MapSize;});
+    game.settingsPath=game.executableDirectory/L"settings.ini";
+    game.resolutionIndex=std::clamp(static_cast<int>(GetPrivateProfileIntW(L"Video",L"Resolution",1,game.settingsPath.c_str())),0,2);
+    game.brightness=std::clamp(GetPrivateProfileIntW(L"Video",L"Brightness",100,game.settingsPath.c_str())/100.0f,0.5f,1.5f);
+    game.contrast=std::clamp(GetPrivateProfileIntW(L"Video",L"Contrast",100,game.settingsPath.c_str())/100.0f,0.5f,1.5f);
+    game.soundEnabled=GetPrivateProfileIntW(L"Audio",L"Sound",1,game.settingsPath.c_str())!=0;
+    game.thirdPerson=GetPrivateProfileIntW(L"Camera",L"ThirdPerson",0,game.settingsPath.c_str())!=0;
+    constexpr int widths[]={960,1280,1600}, heights[]={600,800,900};
+    game.width=widths[game.resolutionIndex];
+    game.height=heights[game.resolutionIndex];
+    return generateMaze(game);
 }
 
 bool atFloor(const Game& game, float x, float z) {
@@ -415,21 +561,46 @@ void activateRoute(Game& game) {
     const int startY=static_cast<int>(std::floor((HalfMaze-game.z)/Cell));
     if (startX<0 || startY<0 || startX>=MapSize || startY>=MapSize || game.map[startY][startX]!='.') return;
     const int count=MapSize*MapSize, start=startY*MapSize+startX;
-    std::vector<int> parent(count,-1), queue;
-    queue.reserve(count); queue.push_back(start); parent[start]=start;
+    const float goalRadius=14.5f;
     int goal=-1;
+    float goalDistance=std::numeric_limits<float>::max();
+    for (int y=0;y<MapSize;++y) for (int x=0;x<MapSize;++x) if (game.map[y][x]=='.') {
+        const float wx=HalfMaze-(x+0.5f)*Cell, wz=HalfMaze-(y+0.5f)*Cell;
+        const float radius=std::hypot(wx,wz), angle=std::atan2(wz,wx);
+        const float angleDelta=std::atan2(std::sin(angle-ExitAngle),std::cos(angle-ExitAngle));
+        if (radius<13.8f || std::abs(angleDelta)>0.035f) continue;
+        const float distance=(radius-goalRadius)*(radius-goalRadius)+angleDelta*angleDelta*goalRadius*goalRadius;
+        if (distance<goalDistance) { goalDistance=distance; goal=y*MapSize+x; }
+    }
+    if (goal<0) return;
+    auto heuristic=[&](int cell) {
+        return static_cast<float>(std::abs(cell%MapSize-goal%MapSize)+std::abs(cell/MapSize-goal/MapSize));
+    };
+    std::vector<float> cost(count,std::numeric_limits<float>::infinity());
+    std::vector<int> parent(count,-1);
+    using OpenEntry=std::pair<float,int>;
+    std::priority_queue<OpenEntry,std::vector<OpenEntry>,std::greater<OpenEntry>> open;
+    cost[start]=0.0f; parent[start]=start; open.push({heuristic(start),start});
     constexpr int dx[4]={-1,1,0,0}, dy[4]={0,0,-1,1};
-    for (size_t head=0;head<queue.size() && goal<0;++head) {
-        const int cell=queue[head], x=cell%MapSize, y=cell/MapSize;
-        if ((x==0 || y==0 || x==MapSize-1 || y==MapSize-1) && game.map[y][x]=='.') { goal=cell; break; }
+    while (!open.empty()) {
+        const int cell=open.top().second;
+        const float score=open.top().first;
+        open.pop();
+        if (cell==goal) break;
+        if (score>cost[cell]+heuristic(cell)+0.001f) continue;
+        const int x=cell%MapSize, y=cell/MapSize;
         for (int d=0;d<4;++d) {
-            const int nx=x+dx[d], ny=y+dy[d], next=ny*MapSize+nx;
-            if (nx>=0 && ny>=0 && nx<MapSize && ny<MapSize && parent[next]<0 && game.map[ny][nx]=='.') {
-                parent[next]=cell; queue.push_back(next);
+            const int nx=x+dx[d], ny=y+dy[d];
+            if (nx<0 || ny<0 || nx>=MapSize || ny>=MapSize || game.map[ny][nx]!='.') continue;
+            const int next=ny*MapSize+nx;
+            const float nextCost=cost[cell]+1.0f;
+            if (nextCost<cost[next]) {
+                cost[next]=nextCost; parent[next]=cell;
+                open.push({nextCost+heuristic(next),next});
             }
         }
     }
-    if (goal<0) return;
+    if (parent[goal]<0) return;
     std::vector<int> path;
     for (int cell=goal;cell!=start;cell=parent[cell]) path.push_back(cell);
     path.push_back(start);
@@ -457,6 +628,59 @@ void activateRoute(Game& game) {
     playSound(game,L"route.wav");
 }
 
+void saveSettings(const Game& game) {
+    auto write=[&](const wchar_t* section,const wchar_t* key,int value) {
+        const std::wstring text=std::to_wstring(value);
+        WritePrivateProfileStringW(section,key,text.c_str(),game.settingsPath.c_str());
+    };
+    write(L"Video",L"Resolution",game.resolutionIndex);
+    write(L"Video",L"Brightness",static_cast<int>(std::lround(game.brightness*100.0f)));
+    write(L"Video",L"Contrast",static_cast<int>(std::lround(game.contrast*100.0f)));
+    write(L"Audio",L"Sound",game.soundEnabled?1:0);
+    write(L"Camera",L"ThirdPerson",game.thirdPerson?1:0);
+}
+
+void setResolution(Game& game) {
+    constexpr int widths[]={960,1280,1600}, heights[]={600,800,900};
+    game.resolutionIndex=std::clamp(game.resolutionIndex,0,2);
+    RECT rect{0,0,widths[game.resolutionIndex],heights[game.resolutionIndex]};
+    AdjustWindowRect(&rect,static_cast<DWORD>(GetWindowLongPtrW(game.window,GWL_STYLE)),FALSE);
+    SetWindowPos(game.window,nullptr,0,0,rect.right-rect.left,rect.bottom-rect.top,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+}
+
+void openSettings(Game& game) {
+    game.settingsFromPause=game.started && game.paused;
+    game.showSettings=true;
+    game.settingsIndex=0;
+    captureMouse(game,false);
+}
+
+void closeSettings(Game& game) {
+    game.showSettings=false;
+    saveSettings(game);
+}
+
+void adjustSetting(Game& game,int direction) {
+    switch (game.settingsIndex) {
+    case 0:
+        game.resolutionIndex=std::clamp(game.resolutionIndex+direction,0,2);
+        setResolution(game);
+        break;
+    case 1:
+        game.brightness=std::clamp(game.brightness+direction*0.1f,0.5f,1.5f);
+        game.brightness=std::round(game.brightness*10.0f)/10.0f;
+        break;
+    case 2:
+        game.contrast=std::clamp(game.contrast+direction*0.1f,0.5f,1.5f);
+        game.contrast=std::round(game.contrast*10.0f)/10.0f;
+        break;
+    case 3: game.soundEnabled=direction>0; break;
+    case 4: game.thirdPerson=direction>0; break;
+    case 5: closeSettings(game); return;
+    }
+    saveSettings(game);
+}
+
 LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     auto* game=reinterpret_cast<Game*>(GetWindowLongPtrW(window,GWLP_USERDATA));
     if (message==WM_NCCREATE) {
@@ -475,6 +699,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         if (game->mouseCaptured) { SetCursor(nullptr); return TRUE; }
         break;
     case WM_LBUTTONDOWN:
+        if (game->showSettings) return 0;
         if (!game->started) beginGame(*game);
         else if (game->paused && !game->won) { game->paused=false; captureMouse(*game,true); playSound(*game,L"menu.wav"); }
         return 0;
@@ -490,10 +715,23 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         return 0;
     case WM_KEYDOWN:
         if (!(lParam & (1LL<<30))) {
-            if (wParam==VK_ESCAPE) {
+            if (game->showSettings) {
+                if (wParam==VK_ESCAPE) closeSettings(*game);
+                else if (wParam==VK_UP) game->settingsIndex=(game->settingsIndex+5)%6;
+                else if (wParam==VK_DOWN) game->settingsIndex=(game->settingsIndex+1)%6;
+                else if (wParam==VK_LEFT) adjustSetting(*game,-1);
+                else if (wParam==VK_RIGHT) adjustSetting(*game,1);
+                else if (wParam==VK_RETURN || wParam==VK_SPACE) {
+                    if (game->settingsIndex==3) { game->soundEnabled=!game->soundEnabled; saveSettings(*game); }
+                    else if (game->settingsIndex==4) { game->thirdPerson=!game->thirdPerson; saveSettings(*game); }
+                    else if (game->settingsIndex==5) closeSettings(*game);
+                }
+            } else if (wParam==VK_ESCAPE) {
                 if (!game->started) DestroyWindow(window);
                 else if (game->paused || game->won) returnToMenu(*game);
                 else { game->paused=true; captureMouse(*game,false); playSound(*game,L"menu.wav"); }
+            } else if (wParam=='S' && (!game->started || game->paused)) {
+                openSettings(*game);
             } else if (!game->started && (wParam==VK_RETURN || wParam==VK_SPACE)) {
                 beginGame(*game);
             } else if (wParam=='R' && game->won) restart(*game);
@@ -604,8 +842,11 @@ in vec2 vUv;
 in float vMaterial;
 uniform vec3 uEye;
 uniform vec3 uFlash;
+uniform float uBrightness;
+uniform float uContrast;
 uniform sampler2D uGrass;
 uniform sampler2D uStone;
+uniform sampler2D uCharacter;
 out vec4 outColor;
 void main() {
     vec3 toPoint = vWorld - uEye;
@@ -615,6 +856,13 @@ void main() {
     float diffuse = max(dot(normalize(vNormal), normalize(uEye - vWorld)), 0.0);
     float attenuation = 1.0 / (1.0 + 0.09*distanceToEye + 0.035*distanceToEye*distanceToEye);
     vec3 albedo = vColor;
+    float alpha=1.0;
+    if (vMaterial > 3.5) {
+        vec4 texel=texture(uCharacter,vUv);
+        if (texel.a<0.18) discard;
+        albedo*=texel.rgb;
+        alpha=texel.a;
+    }
     if (vMaterial < 0.5) albedo *= texture(uGrass, vUv).rgb;
     else if (vMaterial < 1.5) {
         vec3 source = texture(uStone, vUv).rgb;
@@ -630,11 +878,13 @@ void main() {
         vec3 moss = vec3(0.07,0.24,0.045)*(0.8+0.6*grass.g);
         albedo = mix(grayStone,moss,grassCoverage);
     }
-    float ambient = vMaterial < 0.5 ? 0.24 : 0.10;
-    vec3 lit = albedo * (ambient + spot*(0.22 + 0.78*diffuse)*attenuation) + vColor*vEmission;
+    float ambient = vMaterial > 3.5 ? 0.045 : (vMaterial < 0.5 ? 0.018 : 0.009);
+    vec3 lit = albedo * (ambient + spot*(1.05 + 1.25*diffuse)*attenuation) + vColor*vEmission;
     float fog = smoothstep(10.0, 18.0, distanceToEye);
-    if (vMaterial > 2.5) { outColor=vec4(vColor*vEmission,1.0); return; }
-    outColor = vec4(mix(lit, vec3(0.004,0.007,0.012), fog), 1.0);
+    if (vMaterial > 2.5) lit=vColor*vEmission;
+    vec3 color=mix(lit, vec3(0.001,0.002,0.006), fog);
+    color=max((color-vec3(0.5))*uContrast+vec3(0.5),vec3(0.0))*uBrightness;
+    outColor = vec4(color, alpha);
 })GLSL";
 
 constexpr char SkyVertexShader[] = R"GLSL(#version 330 core
@@ -643,6 +893,8 @@ layout(location=1) in vec2 aUv;
 uniform mat4 uView;
 uniform mat4 uProjection;
 uniform vec3 uEye;
+uniform float uBrightness;
+uniform float uContrast;
 out vec2 vUv;
 void main() {
     vec4 clip = uProjection * uView * vec4(aPosition * 60.0 + uEye, 1.0);
@@ -653,8 +905,20 @@ void main() {
 constexpr char SkyFragmentShader[] = R"GLSL(#version 330 core
 in vec2 vUv;
 uniform sampler2D uSky;
+uniform float uBrightness;
+uniform float uContrast;
 out vec4 outColor;
-void main() { outColor = vec4(texture(uSky, vUv).rgb, 1.0); }
+float hash(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+void main() {
+    vec3 sampled=texture(uSky,vUv).rgb;
+    vec3 night=vec3(0.001,0.002,0.008)+sampled*0.025;
+    vec2 grid=vUv*vec2(480.0,240.0), cell=floor(grid), local=fract(grid);
+    float seed=hash(cell);
+    float star=(step(0.9975,seed))*(1.0-smoothstep(0.035,0.10,length(local-vec2(hash(cell+1.3),hash(cell+5.7)))));
+    night+=vec3(0.24,0.30,0.48)*star;
+    vec3 color=max((night-vec3(0.5))*uContrast+vec3(0.5),vec3(0.0))*uBrightness;
+    outColor=vec4(color,1.0);
+}
 )GLSL";
 
 constexpr char UiVertexShader[] = R"GLSL(#version 330 core
@@ -720,6 +984,134 @@ GLuint loadTexture(const std::filesystem::path& path, GLint wrapS, GLint wrapT) 
     return texture;
 }
 
+GLuint loadPngTexture(const std::filesystem::path& path) {
+    Gdiplus::Bitmap image(path.c_str());
+    if (image.GetLastStatus()!=Gdiplus::Ok) return 0;
+    const int width=static_cast<int>(image.GetWidth()), height=static_cast<int>(image.GetHeight());
+    if (width<=0 || height<=0) return 0;
+    Gdiplus::Rect rect(0,0,width,height);
+    Gdiplus::BitmapData data{};
+    if (image.LockBits(&rect,Gdiplus::ImageLockModeRead,PixelFormat32bppARGB,&data)!=Gdiplus::Ok) return 0;
+    GLuint texture=0;
+    glGenTextures(1,&texture);
+    glBindTexture(GL_TEXTURE_2D,texture);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,width,height,0,GL_BGRA,GL_UNSIGNED_BYTE,data.Scan0);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    image.UnlockBits(&data);
+    return texture;
+}
+
+std::array<float,3> modelTint(const std::string& name) {
+    if (name.find("Face")!=std::string::npos) return {0.91f,0.78f,0.69f};
+    if (name.find("Hair")!=std::string::npos || name.find("Bangs")!=std::string::npos) return {0.92f,0.92f,1.0f};
+    if (name.find("Eye")!=std::string::npos) return {0.85f,0.9f,1.0f};
+    if (name.find("Down")!=std::string::npos || name.find("Up")!=std::string::npos) return {0.94f,0.91f,0.87f};
+    return {0.9f,0.94f,1.0f};
+}
+
+bool loadObjModel(const std::filesystem::path& path,ModelObject& output) {
+    struct Index { int position=-1, uv=-1, normal=-1; };
+    struct Group { std::vector<Vertex> vertices; };
+    std::ifstream file(path);
+    if (!file) return false;
+    std::vector<Vec3> positions,normals;
+    std::vector<std::array<float,2>> uvs;
+    std::map<std::string,Group> groups;
+    std::string material="default", materialLibrary;
+    auto indexOf=[](int index,size_t size) -> int {
+        const int result=index>0?index-1:static_cast<int>(size)+index;
+        return result>=0 && result<static_cast<int>(size)?result:-1;
+    };
+    std::string line;
+    while (std::getline(file,line)) {
+        std::istringstream row(line);
+        std::string key;
+        row>>key;
+        if (key=="v") {
+            Vec3 p{}; row>>p.x>>p.y>>p.z; positions.push_back(p);
+        } else if (key=="vt") {
+            std::array<float,2> uv{}; row>>uv[0]>>uv[1]; uv[1]=1.0f-uv[1]; uvs.push_back(uv);
+        } else if (key=="vn") {
+            Vec3 n{}; row>>n.x>>n.y>>n.z; normals.push_back(normalize(n));
+        } else if (key=="usemtl") {
+            row>>material;
+        } else if (key=="mtllib") {
+            std::getline(row,materialLibrary);
+            const size_t first=materialLibrary.find_first_not_of(" \t");
+            if (first!=std::string::npos) materialLibrary.erase(0,first);
+        } else if (key=="f") {
+            std::vector<Index> face;
+            std::string token;
+            while (row>>token) {
+                Index idx;
+                const size_t first=token.find('/');
+                const size_t second=first==std::string::npos?std::string::npos:token.find('/',first+1);
+                try {
+                    idx.position=indexOf(std::stoi(token.substr(0,first)),positions.size());
+                    if (first!=std::string::npos && second!=first+1)
+                        idx.uv=indexOf(std::stoi(token.substr(first+1,second==std::string::npos?std::string::npos:second-first-1)),uvs.size());
+                    if (second!=std::string::npos && second+1<token.size())
+                        idx.normal=indexOf(std::stoi(token.substr(second+1)),normals.size());
+                } catch (...) { idx.position=-1; }
+                if (idx.position>=0) face.push_back(idx);
+            }
+            for (size_t i=1;i+1<face.size();++i) {
+                const Index tri[3]={face[0],face[i],face[i+1]};
+                const Vec3 a=positions[tri[0].position], b=positions[tri[1].position], c=positions[tri[2].position];
+                const Vec3 fallback=normalize(cross({b.x-a.x,b.y-a.y,b.z-a.z},{c.x-a.x,c.y-a.y,c.z-a.z}));
+                const auto tint=modelTint(material);
+                auto& vertices=groups[material].vertices;
+                for (const Index& idx:tri) {
+                    const Vec3 p=positions[idx.position];
+                    const Vec3 n=idx.normal>=0?normals[idx.normal]:fallback;
+                    const auto uv=idx.uv>=0?uvs[idx.uv]:std::array<float,2>{0.0f,0.0f};
+                    vertices.push_back({p.x,p.y,p.z,n.x,n.y,n.z,tint[0],tint[1],tint[2],0.04f,uv[0],uv[1],4.0f});
+                }
+            }
+        }
+    }
+    if (positions.empty() || groups.empty()) return false;
+
+    std::unordered_map<std::string,std::filesystem::path> materialTextures;
+    if (!materialLibrary.empty()) {
+        std::ifstream mtl(path.parent_path()/std::filesystem::path(materialLibrary));
+        std::string current, key;
+        while (mtl>>key) {
+            if (key=="newmtl") mtl>>current;
+            else if (key=="map_Kd") {
+                std::string imageName; std::getline(mtl,imageName);
+                const size_t first=imageName.find_first_not_of(" \t");
+                if (first!=std::string::npos) {
+                    imageName.erase(0,first);
+                    materialTextures[current]=path.parent_path()/std::filesystem::path(imageName);
+                }
+            } else { std::string rest; std::getline(mtl,rest); }
+        }
+    }
+    std::vector<Vertex> vertices;
+    for (auto& entry:groups) {
+        if (entry.second.vertices.empty()) continue;
+        ModelPart part;
+        part.first=static_cast<GLsizei>(vertices.size());
+        part.count=static_cast<GLsizei>(entry.second.vertices.size());
+        const auto texturePath=materialTextures.find(entry.first);
+        if (texturePath!=materialTextures.end() && std::filesystem::exists(texturePath->second))
+            part.texture=loadPngTexture(texturePath->second);
+        vertices.insert(vertices.end(),entry.second.vertices.begin(),entry.second.vertices.end());
+        output.parts.push_back(part);
+    }
+    if (vertices.empty()) return false;
+    glGenVertexArrays(1,&output.vao); glGenBuffers(1,&output.vbo);
+    configureVertexArray(output.vao,output.vbo,false);
+    glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(Vertex)),vertices.data(),GL_STATIC_DRAW);
+    output.loaded=true;
+    return true;
+}
+
 std::vector<SkyVertex> buildSky() {
     constexpr int rings=32, slices=64;
     std::vector<SkyVertex> vertices;
@@ -750,11 +1142,15 @@ bool initializeRenderer(Game& game) {
     game.modelLoc=glGetUniformLocation(game.worldProgram,"uModel");
     game.eyeLoc=glGetUniformLocation(game.worldProgram,"uEye");
     game.flashLoc=glGetUniformLocation(game.worldProgram,"uFlash");
+    game.brightnessLoc=glGetUniformLocation(game.worldProgram,"uBrightness");
+    game.contrastLoc=glGetUniformLocation(game.worldProgram,"uContrast");
 
     game.skyViewLoc=glGetUniformLocation(game.skyProgram,"uView");
     game.skyProjectionLoc=glGetUniformLocation(game.skyProgram,"uProjection");
     game.skyEyeLoc=glGetUniformLocation(game.skyProgram,"uEye");
     game.skySamplerLoc=glGetUniformLocation(game.skyProgram,"uSky");
+    game.skyBrightnessLoc=glGetUniformLocation(game.skyProgram,"uBrightness");
+    game.skyContrastLoc=glGetUniformLocation(game.skyProgram,"uContrast");
 
     wchar_t executable[MAX_PATH]{};
     GetModuleFileNameW(nullptr,executable,MAX_PATH);
@@ -789,10 +1185,14 @@ bool initializeRenderer(Game& game) {
     glUseProgram(game.worldProgram);
     glUniform1i(glGetUniformLocation(game.worldProgram,"uGrass"),0);
     glUniform1i(glGetUniformLocation(game.worldProgram,"uStone"),1);
+    glUniform1i(glGetUniformLocation(game.worldProgram,"uCharacter"),3);
     glUseProgram(game.skyProgram);
     glUniform1i(game.skySamplerLoc,2);
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
+    const auto modelDir=std::filesystem::path(executable).parent_path()/L"assets"/L"models";
+    loadObjModel(modelDir/L"chisa"/L"Chisa.obj",game.character);
+    loadObjModel(modelDir/L"flashlight"/L"Flashlight.obj",game.flashlight);
     return true;
 }
 
@@ -893,7 +1293,30 @@ void renderUi(Game& game) {
     const std::array<float,4> white{0.82f,0.88f,0.90f,1.0f};
     const std::array<float,4> cyan{0.35f,0.85f,0.82f,1.0f};
     const std::array<float,4> green{0.35f,1.0f,0.72f,1.0f};
-    if (!game.started) {
+    if (game.showSettings) {
+        const float cx=w*0.5f, cy=h*0.5f;
+        uiRect(vertices,w,h,0,0,static_cast<float>(w),static_cast<float>(h),{0.002f,0.006f,0.010f,0.84f});
+        uiRect(vertices,w,h,cx-300,cy-235,600,470,{0.012f,0.025f,0.030f,0.98f});
+        uiRect(vertices,w,h,cx-300,cy-235,600,5,{0.25f,0.88f,0.67f,1.0f});
+        centeredText(vertices,w,h,"SETTINGS",cy-195,3.0f,green);
+        constexpr int widths[]={960,1280,1600}, heights[]={600,800,900};
+        const std::array<std::string,6> rows={
+            "RESOLUTION "+std::to_string(widths[game.resolutionIndex])+"X"+std::to_string(heights[game.resolutionIndex]),
+            "BRIGHTNESS "+std::to_string(static_cast<int>(std::lround(game.brightness*100.0f))),
+            "CONTRAST "+std::to_string(static_cast<int>(std::lround(game.contrast*100.0f))),
+            std::string("SOUND ")+(game.soundEnabled?"ON":"OFF"),
+            std::string("CAMERA ")+(game.thirdPerson?"THIRD":"FIRST"),
+            "BACK"
+        };
+        for (int i=0;i<static_cast<int>(rows.size());++i) {
+            const float y=cy-132+i*46.0f;
+            if (i==game.settingsIndex) uiRect(vertices,w,h,cx-250,y-8,500,34,{0.08f,0.32f,0.28f,0.95f});
+            centeredText(vertices,w,h,rows[i],y,1.55f,i==game.settingsIndex?green:white);
+        }
+        centeredText(vertices,w,h,"UP DOWN SELECT",cy+165,1.25f,white);
+        centeredText(vertices,w,h,"LEFT RIGHT ADJUST",cy+190,1.25f,cyan);
+        centeredText(vertices,w,h,"ESC BACK",cy+215,1.1f,white);
+    } else if (!game.started) {
         const float cx=w*0.5f, cy=h*0.5f;
         uiRect(vertices,w,h,0,0,static_cast<float>(w),static_cast<float>(h),{0.002f,0.006f,0.010f,0.78f});
         uiRect(vertices,w,h,cx-300,cy-230,600,460,{0.012f,0.025f,0.030f,0.97f});
@@ -906,7 +1329,8 @@ void renderUi(Game& game) {
         centeredText(vertices,w,h,"O SHOW ROUTE",cy+80,1.35f,cyan);
         uiRect(vertices,w,h,cx-190,cy+105,380,56,{0.08f,0.32f,0.28f,1.0f});
         centeredText(vertices,w,h,"ENTER OR CLICK TO START",cy+124,1.3f,green);
-        centeredText(vertices,w,h,"ESC TO CLOSE",cy+184,1.1f,cyan);
+        centeredText(vertices,w,h,"S SETTINGS",cy+172,1.15f,cyan);
+        centeredText(vertices,w,h,"ESC TO CLOSE",cy+196,1.0f,cyan);
     } else if (game.won) {
         uiRect(vertices,w,h,w*0.5f-220,h*0.5f-110,440,220,{0.004f,0.012f,0.018f,0.92f});
         centeredText(vertices,w,h,"YOU ESCAPED!",h*0.5f-60,4.0f,green);
@@ -917,7 +1341,8 @@ void renderUi(Game& game) {
         uiRect(vertices,w,h,0,0,static_cast<float>(w),static_cast<float>(h),{0.002f,0.006f,0.010f,0.72f});
         centeredText(vertices,w,h,"PAUSED",h*0.5f-48,4.0f,white);
         centeredText(vertices,w,h,"CLICK TO RESUME",h*0.5f+12,1.8f,cyan);
-        centeredText(vertices,w,h,"ESC TO TITLE",h*0.5f+46,1.5f,white);
+        centeredText(vertices,w,h,"S SETTINGS",h*0.5f+46,1.5f,cyan);
+        centeredText(vertices,w,h,"ESC TO TITLE",h*0.5f+78,1.35f,white);
     } else {
         uiRect(vertices,w,h,16,16,208,122,{0.004f,0.010f,0.016f,0.72f});
         uiText(vertices,w,h,"MAZE ESCAPE",28,26,1.7f,cyan);
@@ -945,14 +1370,44 @@ void renderUi(Game& game) {
     glDisable(GL_BLEND); glEnable(GL_DEPTH_TEST);
 }
 
+std::array<float,16> basisTransform(Vec3 right,Vec3 up,Vec3 forward,Vec3 origin,float scale) {
+    return {right.x*scale,right.y*scale,right.z*scale,0.0f,
+            up.x*scale,up.y*scale,up.z*scale,0.0f,
+            forward.x*scale,forward.y*scale,forward.z*scale,0.0f,
+            origin.x,origin.y,origin.z,1.0f};
+}
+
+void drawModel(Game& game,const ModelObject& object,const std::array<float,16>& transform) {
+    if (!object.loaded || object.parts.empty()) return;
+    glUniformMatrix4fv(game.modelLoc,1,GL_FALSE,transform.data());
+    glBindVertexArray(object.vao);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    glActiveTexture(GL_TEXTURE3);
+    for (const ModelPart& part:object.parts) {
+        glBindTexture(GL_TEXTURE_2D,part.texture);
+        glDrawArrays(GL_TRIANGLES,part.first,part.count);
+    }
+    glDisable(GL_BLEND);
+}
+
 void render(Game& game) {
     glViewport(0,0,game.width,game.height);
     glClearColor(0.004f,0.007f,0.012f,1.0f);
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-    const Vec3 eye{game.x,1.15f,game.z};
+    float cameraYaw=game.yaw, cameraPitch=game.pitch;
+    Vec3 eye{game.x,1.38f,game.z};
+    if (game.thirdPerson && game.started) {
+        const float forwardX=std::cos(game.yaw), forwardZ=std::sin(game.yaw);
+        float distance=2.25f;
+        for (;distance>0.45f;distance-=0.10f)
+            if (canStand(game,game.x-forwardX*distance,game.z-forwardZ*distance)) break;
+        eye={game.x-forwardX*distance,1.82f,game.z-forwardZ*distance};
+        cameraPitch=std::clamp(game.pitch-0.18f,-1.15f,1.15f);
+    }
     const float cp=std::cos(game.pitch);
     const Vec3 flash{std::cos(game.yaw)*cp,std::sin(game.pitch),std::sin(game.yaw)*cp};
-    const auto view=viewMatrix(eye,game.yaw,game.pitch);
+    const auto view=viewMatrix(eye,cameraYaw,cameraPitch);
     const auto projection=perspective(70.0f*Pi/180.0f,static_cast<float>(game.width)/game.height,0.05f,70.0f);
     const std::array<float,16> model{1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
 
@@ -961,6 +1416,8 @@ void render(Game& game) {
     glUniformMatrix4fv(game.skyViewLoc,1,GL_FALSE,view.data());
     glUniformMatrix4fv(game.skyProjectionLoc,1,GL_FALSE,projection.data());
     glUniform3f(game.skyEyeLoc,eye.x,eye.y,eye.z);
+    glUniform1f(game.skyBrightnessLoc,game.brightness);
+    glUniform1f(game.skyContrastLoc,game.contrast);
     glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D,game.skyTexture);
     glBindVertexArray(game.skyVao);
     glDrawArrays(GL_TRIANGLES,0,game.skyVertexCount);
@@ -972,6 +1429,8 @@ void render(Game& game) {
     glUniformMatrix4fv(game.modelLoc,1,GL_FALSE,model.data());
     glUniform3f(game.eyeLoc,eye.x,eye.y,eye.z);
     glUniform3f(game.flashLoc,flash.x,flash.y,flash.z);
+    glUniform1f(game.brightnessLoc,game.brightness);
+    glUniform1f(game.contrastLoc,game.contrast);
     glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,game.grassTexture);
     glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D,game.stoneTexture);
     glBindVertexArray(game.worldVao);
@@ -980,22 +1439,52 @@ void render(Game& game) {
         glBindVertexArray(game.routeVao);
         glDrawArrays(GL_TRIANGLES,0,game.routeVertexCount);
     }
+    if (game.started && game.thirdPerson && game.character.loaded) {
+        const float angle=Pi*0.5f-game.yaw;
+        const Vec3 right{std::cos(angle),0.0f,-std::sin(angle)};
+        const Vec3 up{0.0f,1.0f,0.0f};
+        const Vec3 forward{std::sin(angle),0.0f,std::cos(angle)};
+        const Vec3 modelBack{-forward.x,0.0f,-forward.z};
+        const auto characterTransform=basisTransform(right,modelBack,up,{game.x,0.0f,game.z},1.0f);
+        drawModel(game,game.character,characterTransform);
+        const Vec3 hand{game.x+forward.x*0.22f+right.x*0.18f,0.96f,game.z+forward.z*0.22f+right.z*0.18f};
+        const auto heldLight=basisTransform(right,up,forward,hand,0.085f);
+        drawModel(game,game.flashlight,heldLight);
+    } else if (game.started && !game.thirdPerson && game.flashlight.loaded) {
+        const Vec3 forward{std::cos(game.yaw)*cp,std::sin(game.pitch),std::sin(game.yaw)*cp};
+        const Vec3 right=normalize(cross(forward,{0.0f,1.0f,0.0f}));
+        const Vec3 up=cross(right,forward);
+        const Vec3 origin{eye.x+right.x*0.26f+up.x*-0.22f+forward.x*0.62f,
+                          eye.y+right.y*0.26f+up.y*-0.22f+forward.y*0.62f,
+                          eye.z+right.z*0.26f+up.z*-0.22f+forward.z*0.62f};
+        const auto heldLight=basisTransform(right,up,forward,origin,0.12f);
+        drawModel(game,game.flashlight,heldLight);
+    }
     renderUi(game);
     SwapBuffers(game.dc);
 }
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
+    Gdiplus::GdiplusStartupInput gdiplusInput;
+    ULONG_PTR gdiplusToken=0;
+    if (Gdiplus::GdiplusStartup(&gdiplusToken,&gdiplusInput,nullptr)!=Gdiplus::Ok) {
+        MessageBoxW(nullptr,L"Could not initialize image support.",L"Maze Escape",MB_OK|MB_ICONERROR);
+        return 1;
+    }
     Game game;
     if (!loadMap(game)) {
-        MessageBoxW(nullptr,L"Could not load assets\\maze.map. Keep the assets folder next to MazeEscape.exe.",L"Maze Escape",MB_OK|MB_ICONERROR);
+        MessageBoxW(nullptr,L"Could not generate the maze layout.",L"Maze Escape",MB_OK|MB_ICONERROR);
+        Gdiplus::GdiplusShutdown(gdiplusToken);
         return 1;
     }
     if (!createWindowAndContext(game,instance)) {
         MessageBoxW(nullptr,L"Could not create an OpenGL 3.3 window/context.",L"Maze Escape",MB_OK|MB_ICONERROR);
+        Gdiplus::GdiplusShutdown(gdiplusToken);
         return 1;
     }
     if (!initializeRenderer(game)) {
         MessageBoxW(game.window,L"OpenGL 3.3 entry points or shaders could not be initialized.",L"Maze Escape",MB_OK|MB_ICONERROR);
+        Gdiplus::GdiplusShutdown(gdiplusToken);
         return 1;
     }
     using Clock=std::chrono::steady_clock;
@@ -1018,5 +1507,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     if (game.gl) wglDeleteContext(game.gl);
     if (game.dc && game.window) ReleaseDC(game.window,game.dc);
     if (game.window && IsWindow(game.window)) DestroyWindow(game.window);
+    Gdiplus::GdiplusShutdown(gdiplusToken);
     return 0;
 }

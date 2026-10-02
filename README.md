@@ -1,10 +1,10 @@
 # Maze Escape
 
-A first-person OpenGL maze game built directly on Win32/WGL. `assets/maze.png` is rasterized into the walkable layout in `assets/maze.map`; the game generates its 3D wall mesh from that layout at startup.
+A first-person OpenGL maze game built directly on Win32/WGL. Each new run generates a mostly circular, perfect maze: a randomized depth-first search builds a spanning tree over polar cells, leaving exactly one route from the center to the single exit. The maze is converted to a fine grid so its walls look smoothly curved in the 3D view.
 
 ## Code graph
 
-This graph maps 156 code symbols and 262 extracted relationships across 8 communities. The [interactive graph](graphify-out/graph.html) and [graph data](graphify-out/graph.json) are also included.
+This graph maps 209 code and documentation symbols and 358 extracted relationships across 10 communities. The [interactive graph](graphify-out/graph.html) and [graph data](graphify-out/graph.json) are also included.
 
 ![Maze Escape code graph](graphify-out/graph.svg)
 
@@ -17,11 +17,11 @@ cmake -S . -B build
 cmake --build build --config Release
 ```
 
-Run `build\Release\MazeEscape.exe` with a Visual Studio generator, or `build\MazeEscape.exe` with a single-configuration generator. CMake copies maze assets next to the executable.
+Run `build\Release\MazeEscape.exe` with a Visual Studio generator, or `build\MazeEscape.exe` with a single-configuration generator. CMake copies the textures and models next to the executable.
 
 ## Play from the GitHub ZIP
 
-Download and extract the repository ZIP, then double-click `MazeEscape.exe` in the extracted folder. Keep the `assets` folder beside the executable; it contains the maze and textures. No build tools are needed.
+Download and extract the repository ZIP, then double-click `MazeEscape.exe` in the extracted folder. Keep the `assets` folder beside the executable; it contains the textures and 3D models. No build tools are needed.
 
 ## Controls
 
@@ -32,11 +32,23 @@ Download and extract the repository ZIP, then double-click `MazeEscape.exe` in t
 - **Mouse**: look around
 - **O**: reveal the route for one second (15-second cooldown)
 - **Esc**: pause; Esc again returns to the title screen
+- **S**: open settings from the title screen or pause menu
+- **Settings**: Up/Down selects; Left/Right changes; Enter toggles sound, camera, or Back
 - **Click**: start or resume
 - **R**: restart after escaping
 
-Find the green exit arch. Walls block the view; the flashlight is a short spotlight, and the timer stops when you escape. Footsteps play as you move, with cues for the menu, route reveal, and escape. The route skill appears at the lower right while playing.
+Settings include window resolution (960x600, 1280x800, or 1600x900), brightness, contrast, sound on/off, and first/third-person camera. Choices are saved to `settings.ini` beside the executable. Third-person follows Chisa from behind; first-person places the flashlight model in view. The brightness and contrast controls range from 50 to 150 percent.
+
+The O skill runs A* on the walkable grid and briefly draws the shortest route to the exit. The game maze is a spanning tree, so there is only one corridor route to solve; A* efficiently finds that route from the player's current position. Walls block the view, the flashlight is a short spotlight, and the timer stops when you escape. Footsteps play as you move, with cues for the menu, route reveal, and escape. The route skill appears at the lower right while playing.
 
 ## Textures
 
 The bundled leafy grass, weathered gray block wall, and moonlit sky are converted to PPM for the built-in OpenGL loader. Source assets are CC0 from [Poly Haven Leafy Grass](https://polyhaven.com/a/leafy_grass), [Old Stone Wall](https://polyhaven.com/a/old_stone_wall), and [Qwantani Moon Noon (Pure Sky)](https://polyhaven.com/a/qwantani_moon_noon_puresky). The wall shader lightens the stone and adds scattered moss patches; the source texture includes worn joints and small cavities.
+
+## Model credits
+
+"Old Flashlight" (https://skfb.ly/6zFGo) by Blender3D is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+
+"Chisa Wuthering waves" (https://skfb.ly/pEZvB) by Hollowlight is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+
+The supplied Chisa model is included in a static pose. The source FBX did not contain animation clips, so character walking animations are not included.
