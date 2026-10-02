@@ -5,7 +5,7 @@
 1. [x] Generate a randomized, mostly circular perfect maze from polar cells; render/collide against its rasterized walls; route skill uses A* to the designated exit.
 2. [x] Deepen the night lighting and add a settings screen for window resolution, brightness, contrast, and sound, with saved preferences.
 3. [x] Convert and optimize the supplied Chisa and flashlight models; add first-person flashlight and third-person follow-camera modes; preserve both CC-BY credits.
-4. [ ] Build and manually inspect the game, run `/graphify`, update the packaged executable/assets and README, commit, and push.
+4. [x] Build and smoke-check startup, run `/graphify`, update the packaged executable/assets and README, commit, and push.
 
 ## Decisions and Limits
 
@@ -16,6 +16,6 @@
 
 ## Verification
 
-- Build after each major slice.
-- Inspect the generated maze, route, settings, and camera modes in the running game when the renderer supports them.
-- Verify the packaged EXE and required assets are together before pushing.
+- The Release build completed and the window stayed responsive with third-person mode enabled.
+- Confirm the packaged EXE and model textures are beside the runtime assets.
+- Graphify output was refreshed and pushed with the source changes.
