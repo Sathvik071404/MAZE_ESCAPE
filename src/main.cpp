@@ -316,54 +316,38 @@ std::vector<Vertex> buildMaze(const Game& game) {
         addQuad(out,{x0,wallHeight,z0},{x1,wallHeight,z0},{x1,wallHeight,z1},{x0,wallHeight,z1},{0,1,0},r,g,b);
     }
 
-    // Marching squares follows the source image's curved wall boundaries instead of stair-stepping each map cell.
-    for (int y=0; y<MapSize-1; ++y) for (int x=0; x<MapSize-1; ++x) {
-        const bool wall[4]={wallAt(game,x,y),wallAt(game,x+1,y),wallAt(game,x+1,y+1),wallAt(game,x,y+1)};
-        int edge[4], crossings=0;
-        constexpr float edgeU[4]={0.5f,1.0f,0.5f,0.0f};
-        constexpr float edgeV[4]={0.0f,0.5f,1.0f,0.5f};
-        for (int i=0;i<4;++i) if (wall[i]!=wall[(i+1)%4]) edge[crossings++]=i;
-        auto makePoint=[&](int e) {
-            const float u=edgeU[e], v=edgeV[e];
-            return Vec3{HalfMaze-(x+0.5f+u)*Cell,0.0f,HalfMaze-(y+0.5f+v)*Cell};
-        };
-        auto addBoundary=[&](int e0,int e1) {
-            const Vec3 a=makePoint(e0), b=makePoint(e1);
-            const float u=(edgeU[e0]+edgeU[e1])*0.5f, v=(edgeV[e0]+edgeV[e1])*0.5f;
-            const float q00=wall[0]?1.0f:0.0f, q10=wall[1]?1.0f:0.0f;
-            const float q11=wall[2]?1.0f:0.0f, q01=wall[3]?1.0f:0.0f;
-            const float du=(q10-q00)*(1-v)+(q11-q01)*v;
-            const float dv=(q01-q00)*(1-u)+(q11-q10)*u;
-            Vec3 normal=normalize({du,0.0f,dv});
-            if (normal.x==0.0f && normal.z==0.0f) normal={1.0f,0.0f,0.0f};
-            Vec3 c=b, d=a; c.y=d.y=wallHeight;
-            addQuad(out,a,b,c,d,normal,0.86f,0.88f,0.86f);
-        };
-        if (crossings==2) addBoundary(edge[0],edge[1]);
-        else if (crossings==4) {
-            const bool centerWall=(static_cast<int>(wall[0])+static_cast<int>(wall[1])+
-                                   static_cast<int>(wall[2])+static_cast<int>(wall[3]))>=2;
-            for (int corner=0;corner<4;++corner) if (wall[corner]!=centerWall)
-                addBoundary((corner+3)%4,corner);
-        }
+    // Build every exposed tile edge as a full-height face so corners stay sealed.
+    for (int y=0; y<MapSize; ++y) for (int x=0; x<MapSize; ++x) {
+        if (!wallAt(game,x,y)) continue;
+        const float x0=(MapSize*0.5f-x-1)*Cell, x1=x0+Cell;
+        const float z1=(MapSize*0.5f-y)*Cell, z0=z1-Cell;
+        const float r=0.86f, g=0.88f, b=0.86f;
+        if (!wallAt(game,x-1,y))
+            addQuad(out,{x1,0,z0},{x1,0,z1},{x1,wallHeight,z1},{x1,wallHeight,z0},{1,0,0},r,g,b);
+        if (!wallAt(game,x+1,y))
+            addQuad(out,{x0,0,z1},{x0,0,z0},{x0,wallHeight,z0},{x0,wallHeight,z1},{-1,0,0},r,g,b);
+        if (!wallAt(game,x,y-1))
+            addQuad(out,{x1,0,z1},{x0,0,z1},{x0,wallHeight,z1},{x1,wallHeight,z1},{0,0,1},r,g,b);
+        if (!wallAt(game,x,y+1))
+            addQuad(out,{x0,0,z0},{x1,0,z0},{x1,wallHeight,z0},{x0,wallHeight,z0},{0,0,-1},r,g,b);
     }
 
     const float gateX=std::cos(ExitAngle)*15.35f, gateZ=std::sin(ExitAngle)*15.35f;
-    addBox(out,gateX-0.67f,gateX-0.52f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
-    addBox(out,gateX+0.52f,gateX+0.67f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
-    addBox(out,gateX-0.67f,gateX+0.67f,1.72f,1.88f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
+    addBox(out,gateX-1.00f,gateX-0.80f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
+    addBox(out,gateX+0.80f,gateX+1.00f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
+    addBox(out,gateX-1.00f,gateX+1.00f,1.72f,1.88f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
     return out;
 }
 
 bool generateMaze(Game& game) {
     struct CellNode { int ring, sector; };
-    constexpr int RingCount=15;
+    constexpr int RingCount=7;
     auto sectorsForRing=[](int ring) {
         if (ring==0) return 1;
         if (ring<=2) return 8;
         if (ring<=4) return 16;
-        if (ring<=8) return 32;
-        return 64;
+        if (ring<=6) return 24;
+        return 48;
     };
     std::vector<CellNode> nodes{{0,0}};
     std::vector<std::vector<int>> rings(RingCount+1);
@@ -412,8 +396,8 @@ bool generateMaze(Game& game) {
     }
     if (std::find(visited.begin(),visited.end(),uint8_t{0})!=visited.end()) return false;
 
-    constexpr float CenterRadius=1.15f, RadialStep=0.92f;
-    constexpr float WallHalfThickness=0.055f, DoorHalfWidth=0.42f;
+    constexpr float CenterRadius=2.75f, RadialStep=1.75f;
+    constexpr float WallHalfThickness=0.055f, DoorHalfWidth=0.78f;
     const float outerRadius=CenterRadius+RadialStep*RingCount;
     auto wrap=[&](float angle) { return std::atan2(std::sin(angle),std::cos(angle)); };
     auto hasPassage=[&](int a,int b) {
@@ -451,7 +435,7 @@ bool generateMaze(Game& game) {
                 const int innerSectors=sectorsForRing(boundary);
                 const int parentSector=std::min(innerSectors-1,static_cast<int>((outerSector+0.5f)*innerSectors/outerSectors));
                 const int innerId=rings[boundary][parentSector];
-                const float opening=std::min(DoorHalfWidth,0.42f*(2.0f*Pi*boundaryRadius/outerSectors));
+                const float opening=std::min(DoorHalfWidth,0.46f*(2.0f*Pi*boundaryRadius/outerSectors));
                 if (!hasPassage(outerId,innerId) || std::abs(wrap(angle-outerCenter))*boundaryRadius>=opening)
                     floor=false;
                 break;
@@ -503,7 +487,7 @@ bool atFloor(const Game& game, float x, float z) {
 }
 
 bool canStand(const Game& game, float x, float z) {
-    constexpr float radius=0.15f;
+    constexpr float radius=0.35f;
     if (!atFloor(game,x,z)) return false;
     for (int i=0;i<12;++i) {
         const float a=2.0f*Pi*i/12.0f;
@@ -899,7 +883,7 @@ void main() {
         vec3 moss = vec3(0.07,0.24,0.045)*(0.8+0.6*grass.g);
         albedo = mix(grayStone,moss,grassCoverage);
     }
-    float ambient = vMaterial > 3.5 ? 0.045 : (vMaterial < 0.5 ? 0.018 : 0.009);
+    float ambient = vMaterial > 3.5 ? 0.30 : (vMaterial < 0.5 ? 0.018 : 0.009);
     vec3 lit = albedo * (ambient + spot*(1.05 + 1.25*diffuse)*attenuation) + vColor*vEmission;
     float fog = smoothstep(10.0, 18.0, distanceToEye);
     vec3 color=mix(lit, vec3(0.001,0.002,0.006), fog);
@@ -1012,6 +996,16 @@ GLuint loadPngTexture(const std::filesystem::path& path) {
     Gdiplus::Rect rect(0,0,width,height);
     Gdiplus::BitmapData data{};
     if (image.LockBits(&rect,Gdiplus::ImageLockModeRead,PixelFormat32bppARGB,&data)!=Gdiplus::Ok) return 0;
+    const size_t rowBytes=static_cast<size_t>(width)*4;
+    if (data.Stride==0 || static_cast<size_t>(std::abs(data.Stride))<rowBytes) {
+        image.UnlockBits(&data);
+        return 0;
+    }
+    std::vector<uint8_t> pixels(rowBytes*static_cast<size_t>(height));
+    const auto* firstRow=static_cast<const uint8_t*>(data.Scan0);
+    for (int y=0;y<height;++y)
+        std::memcpy(pixels.data()+static_cast<size_t>(y)*rowBytes,
+                    firstRow+static_cast<ptrdiff_t>(y)*data.Stride,rowBytes);
     GLuint texture=0;
     glGenTextures(1,&texture);
     glBindTexture(GL_TEXTURE_2D,texture);
@@ -1019,7 +1013,7 @@ GLuint loadPngTexture(const std::filesystem::path& path) {
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,width,height,0,GL_BGRA,GL_UNSIGNED_BYTE,data.Scan0);
+    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,width,height,0,GL_BGRA,GL_UNSIGNED_BYTE,pixels.data());
     glGenerateMipmap(GL_TEXTURE_2D);
     image.UnlockBits(&data);
     return texture;
@@ -1441,6 +1435,7 @@ void render(Game& game) {
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
     float cameraYaw=game.yaw, cameraPitch=game.pitch;
     const float bob=std::sin(game.walkPhase*2.0f)*0.025f*game.walking;
+    const float modelBob=std::sin(game.walkPhase*2.0f)*0.018f*game.walking;
     Vec3 eye{game.x,1.38f+bob,game.z};
     if (game.thirdPerson && game.started) {
         const float forwardX=std::cos(game.yaw), forwardZ=std::sin(game.yaw);
@@ -1461,8 +1456,8 @@ void render(Game& game) {
         heldRight={std::cos(angle),0.0f,-std::sin(angle)};
         heldUp={0.0f,1.0f,0.0f};
         heldForward={std::sin(angle),0.0f,std::cos(angle)};
-        heldOrigin={game.x+heldForward.x*0.22f+heldRight.x*0.18f,0.96f,
-                    game.z+heldForward.z*0.22f+heldRight.z*0.18f};
+        heldOrigin={game.x-heldRight.x*0.134f+heldForward.x*0.405f,1.063f+modelBob,
+                    game.z-heldRight.z*0.134f+heldForward.z*0.405f};
         heldScale=0.085f;
     } else {
         heldForward={std::cos(game.yaw)*cp,std::sin(game.pitch),std::sin(game.yaw)*cp};
@@ -1515,7 +1510,6 @@ void render(Game& game) {
                              0,static_cast<int>(game.characterWalk.size())-1);
         const ModelObject& actor=game.walking>0.05f && !game.characterWalk.empty() && game.characterWalk[frame].loaded
             ? game.characterWalk[frame] : game.character;
-        const float modelBob=std::sin(game.walkPhase*2.0f)*0.018f*game.walking;
         const float angle=Pi*0.5f-game.yaw;
         const Vec3 right{std::cos(angle),0.0f,-std::sin(angle)};
         const Vec3 up{0.0f,1.0f,0.0f};
