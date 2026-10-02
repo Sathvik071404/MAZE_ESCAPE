@@ -37,7 +37,7 @@ Download and extract the repository ZIP, then double-click `MazeEscape.exe` in t
 - **Click**: start or resume
 - **R**: restart after escaping
 
-Settings include window resolution (960x600, 1280x800, or 1600x900), brightness, contrast, sound on/off, and first/third-person camera. Choices are saved to `settings.ini` beside the executable. Third-person follows Chisa from behind; first-person places the flashlight model in view. The brightness and contrast controls range from 50 to 150 percent.
+Settings include window resolution (960x600, 1280x800, 1600x900, or fullscreen), brightness, contrast, sound on/off, and first/third-person camera. Choices are saved to `settings.ini` beside the executable. Third-person follows Chisa from behind; first-person shows her body when looking down and the flashlight in view. Chisa uses a baked walk cycle. The brightness and contrast controls range from 50 to 150 percent.
 
 The O skill runs A* on the walkable grid and briefly draws the shortest route to the exit. The game maze is a spanning tree, so there is only one corridor route to solve; A* efficiently finds that route from the player's current position. Walls block the view, the flashlight is a short spotlight, and the timer stops when you escape. Footsteps play as you move, with cues for the menu, route reveal, and escape. The route skill appears at the lower right while playing.
 

@@ -121,7 +121,7 @@ struct Vertex {
 struct SkyVertex { float x, y, z, u, v; };
 struct UiVertex { float x, y, r, g, b, a; };
 struct Vec3 { float x, y, z; };
-struct ModelPart { GLsizei first = 0, count = 0; GLuint texture = 0; };
+struct ModelPart { GLsizei first = 0, count = 0; GLuint texture = 0; std::string material; };
 struct ModelObject { GLuint vao = 0, vbo = 0; std::vector<ModelPart> parts; bool loaded = false; };
 
 struct Game {
@@ -142,6 +142,7 @@ struct Game {
     float elapsed = 0.0f;
     bool started = false, paused = false, won = false, mouseCaptured = false, running = true;
     bool showSettings = false, settingsFromPause = false, soundEnabled = true, thirdPerson = false;
+    float walkPhase = 0.0f, walking = 0.0f;
     int settingsIndex = 0, resolutionIndex = 1;
     float brightness = 1.0f, contrast = 1.0f;
     bool alternateFootstep = false;
@@ -149,8 +150,10 @@ struct Game {
     GLuint worldVao = 0, worldVbo = 0, routeVao = 0, routeVbo = 0;
     GLuint skyVao = 0, skyVbo = 0, uiVao = 0, uiVbo = 0;
     ModelObject character, flashlight;
+    std::vector<ModelObject> characterWalk;
+    std::unordered_map<std::wstring,GLuint> modelTextures;
     GLuint grassTexture = 0, stoneTexture = 0, skyTexture = 0;
-    GLint viewLoc = -1, projectionLoc = -1, modelLoc = -1, eyeLoc = -1, flashLoc = -1;
+    GLint viewLoc = -1, projectionLoc = -1, modelLoc = -1, eyeLoc = -1, flashLoc = -1, lightPosLoc = -1;
     GLint brightnessLoc = -1, contrastLoc = -1;
     GLint skyViewLoc = -1, skyProjectionLoc = -1, skyEyeLoc = -1, skySamplerLoc = -1;
     GLint skyBrightnessLoc = -1, skyContrastLoc = -1;
@@ -357,10 +360,10 @@ bool generateMaze(Game& game) {
     constexpr int RingCount=15;
     auto sectorsForRing=[](int ring) {
         if (ring==0) return 1;
-        if (ring<=2) return 8*ring;
-        if (ring<=4) return 32;
-        if (ring<=8) return 64;
-        return 128;
+        if (ring<=2) return 8;
+        if (ring<=4) return 16;
+        if (ring<=8) return 32;
+        return 64;
     };
     std::vector<CellNode> nodes{{0,0}};
     std::vector<std::vector<int>> rings(RingCount+1);
@@ -409,8 +412,8 @@ bool generateMaze(Game& game) {
     }
     if (std::find(visited.begin(),visited.end(),uint8_t{0})!=visited.end()) return false;
 
-    constexpr float CenterRadius=0.45f, RadialStep=0.97f;
-    constexpr float WallHalfThickness=0.055f, DoorHalfWidth=0.29f;
+    constexpr float CenterRadius=1.15f, RadialStep=0.92f;
+    constexpr float WallHalfThickness=0.055f, DoorHalfWidth=0.42f;
     const float outerRadius=CenterRadius+RadialStep*RingCount;
     auto wrap=[&](float angle) { return std::atan2(std::sin(angle),std::cos(angle)); };
     auto hasPassage=[&](int a,int b) {
@@ -448,7 +451,8 @@ bool generateMaze(Game& game) {
                 const int innerSectors=sectorsForRing(boundary);
                 const int parentSector=std::min(innerSectors-1,static_cast<int>((outerSector+0.5f)*innerSectors/outerSectors));
                 const int innerId=rings[boundary][parentSector];
-                if (!hasPassage(outerId,innerId) || std::abs(wrap(angle-outerCenter))*boundaryRadius>=DoorHalfWidth)
+                const float opening=std::min(DoorHalfWidth,0.42f*(2.0f*Pi*boundaryRadius/outerSectors));
+                if (!hasPassage(outerId,innerId) || std::abs(wrap(angle-outerCenter))*boundaryRadius>=opening)
                     floor=false;
                 break;
             }
@@ -477,14 +481,14 @@ bool loadMap(Game& game) {
     GetModuleFileNameW(nullptr,path,MAX_PATH);
     game.executableDirectory=std::filesystem::path(path).parent_path();
     game.settingsPath=game.executableDirectory/L"settings.ini";
-    game.resolutionIndex=std::clamp(static_cast<int>(GetPrivateProfileIntW(L"Video",L"Resolution",1,game.settingsPath.c_str())),0,2);
+    game.resolutionIndex=std::clamp(static_cast<int>(GetPrivateProfileIntW(L"Video",L"Resolution",1,game.settingsPath.c_str())),0,3);
     game.brightness=std::clamp(GetPrivateProfileIntW(L"Video",L"Brightness",100,game.settingsPath.c_str())/100.0f,0.5f,1.5f);
     game.contrast=std::clamp(GetPrivateProfileIntW(L"Video",L"Contrast",100,game.settingsPath.c_str())/100.0f,0.5f,1.5f);
     game.soundEnabled=GetPrivateProfileIntW(L"Audio",L"Sound",1,game.settingsPath.c_str())!=0;
     game.thirdPerson=GetPrivateProfileIntW(L"Camera",L"ThirdPerson",0,game.settingsPath.c_str())!=0;
     constexpr int widths[]={960,1280,1600}, heights[]={600,800,900};
-    game.width=widths[game.resolutionIndex];
-    game.height=heights[game.resolutionIndex];
+    game.width=game.resolutionIndex==3?GetSystemMetrics(SM_CXSCREEN):widths[game.resolutionIndex];
+    game.height=game.resolutionIndex==3?GetSystemMetrics(SM_CYSCREEN):heights[game.resolutionIndex];
     return generateMaze(game);
 }
 
@@ -533,6 +537,7 @@ void restart(Game& game) {
     game.won=game.paused=false;
     game.routeVisible=game.routeCooldown=0.0f;
     game.stepDistance=0.0f;
+    game.walkPhase=game.walking=0.0f;
     captureMouse(game,true);
     SetFocus(game.window);
 }
@@ -540,6 +545,7 @@ void restart(Game& game) {
 void beginGame(Game& game) {
     game.started=true;
     game.paused=false;
+    game.walking=0.0f;
     playSound(game,L"menu.wav");
     captureMouse(game,true);
     SetFocus(game.window);
@@ -551,6 +557,7 @@ void returnToMenu(Game& game) {
     game.started=game.paused=game.won=false;
     game.routeVisible=game.routeCooldown=0.0f;
     game.stepDistance=0.0f;
+    game.walkPhase=game.walking=0.0f;
     captureMouse(game,false);
     playSound(game,L"menu.wav");
 }
@@ -638,14 +645,24 @@ void saveSettings(const Game& game) {
     write(L"Video",L"Contrast",static_cast<int>(std::lround(game.contrast*100.0f)));
     write(L"Audio",L"Sound",game.soundEnabled?1:0);
     write(L"Camera",L"ThirdPerson",game.thirdPerson?1:0);
+    WritePrivateProfileStringW(nullptr,nullptr,nullptr,game.settingsPath.c_str());
 }
 
 void setResolution(Game& game) {
     constexpr int widths[]={960,1280,1600}, heights[]={600,800,900};
-    game.resolutionIndex=std::clamp(game.resolutionIndex,0,2);
+    game.resolutionIndex=std::clamp(game.resolutionIndex,0,3);
+    if (game.resolutionIndex==3) {
+        SetWindowLongPtrW(game.window,GWL_STYLE,WS_POPUP|WS_VISIBLE);
+        SetWindowPos(game.window,HWND_TOP,0,0,GetSystemMetrics(SM_CXSCREEN),GetSystemMetrics(SM_CYSCREEN),SWP_FRAMECHANGED|SWP_SHOWWINDOW);
+        return;
+    }
+    SetWindowLongPtrW(game.window,GWL_STYLE,WS_OVERLAPPEDWINDOW|WS_VISIBLE);
     RECT rect{0,0,widths[game.resolutionIndex],heights[game.resolutionIndex]};
-    AdjustWindowRect(&rect,static_cast<DWORD>(GetWindowLongPtrW(game.window,GWL_STYLE)),FALSE);
-    SetWindowPos(game.window,nullptr,0,0,rect.right-rect.left,rect.bottom-rect.top,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+    AdjustWindowRect(&rect,WS_OVERLAPPEDWINDOW,FALSE);
+    const int windowWidth=rect.right-rect.left, windowHeight=rect.bottom-rect.top;
+    SetWindowPos(game.window,HWND_TOP,(GetSystemMetrics(SM_CXSCREEN)-windowWidth)/2,
+                 (GetSystemMetrics(SM_CYSCREEN)-windowHeight)/2,windowWidth,windowHeight,
+                 SWP_FRAMECHANGED|SWP_SHOWWINDOW);
 }
 
 void openSettings(Game& game) {
@@ -663,7 +680,7 @@ void closeSettings(Game& game) {
 void adjustSetting(Game& game,int direction) {
     switch (game.settingsIndex) {
     case 0:
-        game.resolutionIndex=std::clamp(game.resolutionIndex+direction,0,2);
+        game.resolutionIndex=std::clamp(game.resolutionIndex+direction,0,3);
         setResolution(game);
         break;
     case 1:
@@ -785,10 +802,12 @@ bool createWindowAndContext(Game& game, HINSTANCE instance) {
     if (!dummyGl || !wglMakeCurrent(dummyDc,dummyGl)) return false;
     auto createContext=reinterpret_cast<CreateContextAttribs>(wglGetProcAddress("wglCreateContextAttribsARB"));
 
+    const DWORD style=game.resolutionIndex==3?WS_POPUP:WS_OVERLAPPEDWINDOW;
     RECT rect{0,0,game.width,game.height};
-    AdjustWindowRect(&rect,WS_OVERLAPPEDWINDOW,FALSE);
-    game.window=CreateWindowExW(0,wc.lpszClassName,L"Maze Escape | Find the exit",WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT,CW_USEDEFAULT,rect.right-rect.left,rect.bottom-rect.top,nullptr,nullptr,instance,&game);
+    if (game.resolutionIndex!=3) AdjustWindowRect(&rect,style,FALSE);
+    game.window=CreateWindowExW(0,wc.lpszClassName,L"Maze Escape | Find the exit",style,
+        game.resolutionIndex==3?0:CW_USEDEFAULT,game.resolutionIndex==3?0:CW_USEDEFAULT,
+        rect.right-rect.left,rect.bottom-rect.top,nullptr,nullptr,instance,&game);
     if (!game.window) return false;
     game.dc=GetDC(game.window);
     if (!setPixelFormat(game.dc) || !createContext) return false;
@@ -842,6 +861,7 @@ in vec2 vUv;
 in float vMaterial;
 uniform vec3 uEye;
 uniform vec3 uFlash;
+uniform vec3 uLightPos;
 uniform float uBrightness;
 uniform float uContrast;
 uniform sampler2D uGrass;
@@ -849,12 +869,13 @@ uniform sampler2D uStone;
 uniform sampler2D uCharacter;
 out vec4 outColor;
 void main() {
-    vec3 toPoint = vWorld - uEye;
-    float distanceToEye = length(toPoint);
+    vec3 toPoint = vWorld - uLightPos;
+    float distanceToEye = length(vWorld - uEye);
+    float distanceToLight = length(toPoint);
     float cone = dot(normalize(toPoint), normalize(uFlash));
     float spot = smoothstep(0.76, 0.93, cone);
-    float diffuse = max(dot(normalize(vNormal), normalize(uEye - vWorld)), 0.0);
-    float attenuation = 1.0 / (1.0 + 0.09*distanceToEye + 0.035*distanceToEye*distanceToEye);
+    float diffuse = max(dot(normalize(vNormal), normalize(uLightPos - vWorld)), 0.0);
+    float attenuation = 1.0 / (1.0 + 0.09*distanceToLight + 0.035*distanceToLight*distanceToLight);
     vec3 albedo = vColor;
     float alpha=1.0;
     if (vMaterial > 3.5) {
@@ -881,7 +902,6 @@ void main() {
     float ambient = vMaterial > 3.5 ? 0.045 : (vMaterial < 0.5 ? 0.018 : 0.009);
     vec3 lit = albedo * (ambient + spot*(1.05 + 1.25*diffuse)*attenuation) + vColor*vEmission;
     float fog = smoothstep(10.0, 18.0, distanceToEye);
-    if (vMaterial > 2.5) lit=vColor*vEmission;
     vec3 color=mix(lit, vec3(0.001,0.002,0.006), fog);
     color=max((color-vec3(0.5))*uContrast+vec3(0.5),vec3(0.0))*uBrightness;
     outColor = vec4(color, alpha);
@@ -1013,7 +1033,7 @@ std::array<float,3> modelTint(const std::string& name) {
     return {0.9f,0.94f,1.0f};
 }
 
-bool loadObjModel(const std::filesystem::path& path,ModelObject& output) {
+bool loadObjModel(Game& game,const std::filesystem::path& path,ModelObject& output) {
     struct Index { int position=-1, uv=-1, normal=-1; };
     struct Group { std::vector<Vertex> vertices; };
     std::ifstream file(path);
@@ -1098,9 +1118,17 @@ bool loadObjModel(const std::filesystem::path& path,ModelObject& output) {
         ModelPart part;
         part.first=static_cast<GLsizei>(vertices.size());
         part.count=static_cast<GLsizei>(entry.second.vertices.size());
+        part.material=entry.first;
         const auto texturePath=materialTextures.find(entry.first);
-        if (texturePath!=materialTextures.end() && std::filesystem::exists(texturePath->second))
-            part.texture=loadPngTexture(texturePath->second);
+        if (texturePath!=materialTextures.end() && std::filesystem::exists(texturePath->second)) {
+            const auto key=texturePath->second.wstring();
+            const auto cached=game.modelTextures.find(key);
+            if (cached!=game.modelTextures.end()) part.texture=cached->second;
+            else {
+                part.texture=loadPngTexture(texturePath->second);
+                game.modelTextures.emplace(key,part.texture);
+            }
+        }
         vertices.insert(vertices.end(),entry.second.vertices.begin(),entry.second.vertices.end());
         output.parts.push_back(part);
     }
@@ -1142,6 +1170,7 @@ bool initializeRenderer(Game& game) {
     game.modelLoc=glGetUniformLocation(game.worldProgram,"uModel");
     game.eyeLoc=glGetUniformLocation(game.worldProgram,"uEye");
     game.flashLoc=glGetUniformLocation(game.worldProgram,"uFlash");
+    game.lightPosLoc=glGetUniformLocation(game.worldProgram,"uLightPos");
     game.brightnessLoc=glGetUniformLocation(game.worldProgram,"uBrightness");
     game.contrastLoc=glGetUniformLocation(game.worldProgram,"uContrast");
 
@@ -1191,8 +1220,12 @@ bool initializeRenderer(Game& game) {
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     const auto modelDir=std::filesystem::path(executable).parent_path()/L"assets"/L"models";
-    loadObjModel(modelDir/L"chisa"/L"Chisa.obj",game.character);
-    loadObjModel(modelDir/L"flashlight"/L"Flashlight.obj",game.flashlight);
+    const auto characterDir=modelDir/L"chisa";
+    loadObjModel(game,characterDir/L"Chisa.obj",game.character);
+    game.characterWalk.resize(8);
+    for (int i=0;i<static_cast<int>(game.characterWalk.size());++i)
+        loadObjModel(game,characterDir/(L"ChisaWalk0"+std::to_wstring(i)+L".obj"),game.characterWalk[i]);
+    loadObjModel(game,modelDir/L"flashlight"/L"Flashlight.obj",game.flashlight);
     return true;
 }
 
@@ -1202,7 +1235,12 @@ void movePlayer(Game& game, float dt) {
     game.routeCooldown=std::max(0.0f,game.routeCooldown-dt);
     const float forward=(GetAsyncKeyState('W')<0?1.0f:0.0f)-(GetAsyncKeyState('S')<0?1.0f:0.0f);
     const float side=(GetAsyncKeyState('D')<0?1.0f:0.0f)-(GetAsyncKeyState('A')<0?1.0f:0.0f);
-    if (forward==0.0f && side==0.0f) { game.stepDistance=0.0f; game.elapsed+=dt; return; }
+    if (forward==0.0f && side==0.0f) {
+        game.stepDistance=0.0f;
+        game.walking=std::max(0.0f,game.walking-dt*7.0f);
+        game.elapsed+=dt;
+        return;
+    }
     const float length=std::sqrt(forward*forward+side*side);
     const float f=forward/length, s=side/length;
     const bool sprinting=GetAsyncKeyState(VK_SHIFT)<0;
@@ -1212,7 +1250,10 @@ void movePlayer(Game& game, float dt) {
     const float oldX=game.x, oldZ=game.z;
     if (canStand(game,game.x+dx,game.z)) game.x+=dx;
     if (canStand(game,game.x,game.z+dz)) game.z+=dz;
-    game.stepDistance+=std::hypot(game.x-oldX,game.z-oldZ);
+    const float moved=std::hypot(game.x-oldX,game.z-oldZ);
+    game.stepDistance+=moved;
+    game.walking=std::clamp(game.walking+(moved>0.0001f?dt*8.0f:-dt*7.0f),0.0f,1.0f);
+    if (moved>0.0001f) game.walkPhase=std::fmod(game.walkPhase+dt*(sprinting?13.0f:10.0f),2.0f*Pi);
     const float stepLength=sprinting?0.9f:0.68f;
     if (game.stepDistance>=stepLength) {
         game.stepDistance-=stepLength;
@@ -1300,8 +1341,10 @@ void renderUi(Game& game) {
         uiRect(vertices,w,h,cx-300,cy-235,600,5,{0.25f,0.88f,0.67f,1.0f});
         centeredText(vertices,w,h,"SETTINGS",cy-195,3.0f,green);
         constexpr int widths[]={960,1280,1600}, heights[]={600,800,900};
+        const std::string resolution=game.resolutionIndex==3?"FULLSCREEN":
+            std::to_string(widths[game.resolutionIndex])+"X"+std::to_string(heights[game.resolutionIndex]);
         const std::array<std::string,6> rows={
-            "RESOLUTION "+std::to_string(widths[game.resolutionIndex])+"X"+std::to_string(heights[game.resolutionIndex]),
+            "RESOLUTION "+resolution,
             "BRIGHTNESS "+std::to_string(static_cast<int>(std::lround(game.brightness*100.0f))),
             "CONTRAST "+std::to_string(static_cast<int>(std::lround(game.contrast*100.0f))),
             std::string("SOUND ")+(game.soundEnabled?"ON":"OFF"),
@@ -1377,7 +1420,7 @@ std::array<float,16> basisTransform(Vec3 right,Vec3 up,Vec3 forward,Vec3 origin,
             origin.x,origin.y,origin.z,1.0f};
 }
 
-void drawModel(Game& game,const ModelObject& object,const std::array<float,16>& transform) {
+void drawModel(Game& game,const ModelObject& object,const std::array<float,16>& transform,bool bodyOnly=false) {
     if (!object.loaded || object.parts.empty()) return;
     glUniformMatrix4fv(game.modelLoc,1,GL_FALSE,transform.data());
     glBindVertexArray(object.vao);
@@ -1385,6 +1428,7 @@ void drawModel(Game& game,const ModelObject& object,const std::array<float,16>& 
     glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
     glActiveTexture(GL_TEXTURE3);
     for (const ModelPart& part:object.parts) {
+        if (bodyOnly && part.material.find("Up")==std::string::npos && part.material.find("Down")==std::string::npos) continue;
         glBindTexture(GL_TEXTURE_2D,part.texture);
         glDrawArrays(GL_TRIANGLES,part.first,part.count);
     }
@@ -1396,17 +1440,41 @@ void render(Game& game) {
     glClearColor(0.004f,0.007f,0.012f,1.0f);
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
     float cameraYaw=game.yaw, cameraPitch=game.pitch;
-    Vec3 eye{game.x,1.38f,game.z};
+    const float bob=std::sin(game.walkPhase*2.0f)*0.025f*game.walking;
+    Vec3 eye{game.x,1.38f+bob,game.z};
     if (game.thirdPerson && game.started) {
         const float forwardX=std::cos(game.yaw), forwardZ=std::sin(game.yaw);
-        float distance=2.25f;
-        for (;distance>0.45f;distance-=0.10f)
-            if (canStand(game,game.x-forwardX*distance,game.z-forwardZ*distance)) break;
-        eye={game.x-forwardX*distance,1.82f,game.z-forwardZ*distance};
+        float distance=0.0f;
+        for (float candidate=0.025f;candidate<=2.25f;candidate+=0.025f) {
+            if (!canStand(game,game.x-forwardX*candidate,game.z-forwardZ*candidate)) break;
+            distance=candidate;
+        }
+        eye={game.x-forwardX*distance,1.62f,game.z-forwardZ*distance};
         cameraPitch=std::clamp(game.pitch-0.18f,-1.15f,1.15f);
     }
     const float cp=std::cos(game.pitch);
     const Vec3 flash{std::cos(game.yaw)*cp,std::sin(game.pitch),std::sin(game.yaw)*cp};
+    Vec3 heldRight{},heldUp{},heldForward{},heldOrigin{};
+    float heldScale=0.12f;
+    if (game.thirdPerson) {
+        const float angle=Pi*0.5f-game.yaw;
+        heldRight={std::cos(angle),0.0f,-std::sin(angle)};
+        heldUp={0.0f,1.0f,0.0f};
+        heldForward={std::sin(angle),0.0f,std::cos(angle)};
+        heldOrigin={game.x+heldForward.x*0.22f+heldRight.x*0.18f,0.96f,
+                    game.z+heldForward.z*0.22f+heldRight.z*0.18f};
+        heldScale=0.085f;
+    } else {
+        heldForward={std::cos(game.yaw)*cp,std::sin(game.pitch),std::sin(game.yaw)*cp};
+        heldRight=normalize(cross(heldForward,{0.0f,1.0f,0.0f}));
+        heldUp=cross(heldRight,heldForward);
+        heldOrigin={eye.x+heldRight.x*0.26f-heldUp.x*0.22f+heldForward.x*0.62f,
+                    eye.y+heldRight.y*0.26f-heldUp.y*0.22f+heldForward.y*0.62f,
+                    eye.z+heldRight.z*0.26f-heldUp.z*0.22f+heldForward.z*0.62f};
+    }
+    const Vec3 lightPos{heldOrigin.x+heldForward.x*heldScale*2.871889f,
+                        heldOrigin.y+heldForward.y*heldScale*2.871889f,
+                        heldOrigin.z+heldForward.z*heldScale*2.871889f};
     const auto view=viewMatrix(eye,cameraYaw,cameraPitch);
     const auto projection=perspective(70.0f*Pi/180.0f,static_cast<float>(game.width)/game.height,0.05f,70.0f);
     const std::array<float,16> model{1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
@@ -1429,6 +1497,7 @@ void render(Game& game) {
     glUniformMatrix4fv(game.modelLoc,1,GL_FALSE,model.data());
     glUniform3f(game.eyeLoc,eye.x,eye.y,eye.z);
     glUniform3f(game.flashLoc,flash.x,flash.y,flash.z);
+    glUniform3f(game.lightPosLoc,lightPos.x,lightPos.y,lightPos.z);
     glUniform1f(game.brightnessLoc,game.brightness);
     glUniform1f(game.contrastLoc,game.contrast);
     glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,game.grassTexture);
@@ -1439,25 +1508,23 @@ void render(Game& game) {
         glBindVertexArray(game.routeVao);
         glDrawArrays(GL_TRIANGLES,0,game.routeVertexCount);
     }
-    if (game.started && game.thirdPerson && game.character.loaded) {
+    if (game.started && game.character.loaded) {
+        int frame=0;
+        if (!game.characterWalk.empty())
+            frame=std::clamp(static_cast<int>(game.walkPhase/(2.0f*Pi)*game.characterWalk.size()),
+                             0,static_cast<int>(game.characterWalk.size())-1);
+        const ModelObject& actor=game.walking>0.05f && !game.characterWalk.empty() && game.characterWalk[frame].loaded
+            ? game.characterWalk[frame] : game.character;
+        const float modelBob=std::sin(game.walkPhase*2.0f)*0.018f*game.walking;
         const float angle=Pi*0.5f-game.yaw;
         const Vec3 right{std::cos(angle),0.0f,-std::sin(angle)};
         const Vec3 up{0.0f,1.0f,0.0f};
         const Vec3 forward{std::sin(angle),0.0f,std::cos(angle)};
         const Vec3 modelBack{-forward.x,0.0f,-forward.z};
-        const auto characterTransform=basisTransform(right,modelBack,up,{game.x,0.0f,game.z},1.0f);
-        drawModel(game,game.character,characterTransform);
-        const Vec3 hand{game.x+forward.x*0.22f+right.x*0.18f,0.96f,game.z+forward.z*0.22f+right.z*0.18f};
-        const auto heldLight=basisTransform(right,up,forward,hand,0.085f);
-        drawModel(game,game.flashlight,heldLight);
-    } else if (game.started && !game.thirdPerson && game.flashlight.loaded) {
-        const Vec3 forward{std::cos(game.yaw)*cp,std::sin(game.pitch),std::sin(game.yaw)*cp};
-        const Vec3 right=normalize(cross(forward,{0.0f,1.0f,0.0f}));
-        const Vec3 up=cross(right,forward);
-        const Vec3 origin{eye.x+right.x*0.26f+up.x*-0.22f+forward.x*0.62f,
-                          eye.y+right.y*0.26f+up.y*-0.22f+forward.y*0.62f,
-                          eye.z+right.z*0.26f+up.z*-0.22f+forward.z*0.62f};
-        const auto heldLight=basisTransform(right,up,forward,origin,0.12f);
+        const auto characterTransform=basisTransform(right,modelBack,up,{game.x,modelBob,game.z},1.0f);
+        if (game.thirdPerson) drawModel(game,actor,characterTransform);
+        else drawModel(game,actor,characterTransform,true);
+        const auto heldLight=basisTransform(heldRight,heldUp,heldForward,heldOrigin,heldScale);
         drawModel(game,game.flashlight,heldLight);
     }
     renderUi(game);

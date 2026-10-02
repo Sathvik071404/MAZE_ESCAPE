@@ -2,6 +2,7 @@
 /.vs/
 *.obj
 !assets/models/chisa/Chisa.obj
+!assets/models/chisa/ChisaWalk*.obj
 !assets/models/flashlight/Flashlight.obj
 *.pdb
 /graphify-out/cache/
