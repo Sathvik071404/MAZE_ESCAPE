@@ -17,19 +17,6 @@
       "source_location": "L259"
     },
     {
-      "id": "src_main_skyvertex",
-      "label": "SkyVertex",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "skyvertex",
-      "source_file": "src/main.cpp",
-      "source_location": "L165"
-    },
-    {
       "id": "src_main_radialwall",
       "label": "RadialWall",
       "_callable": true,
@@ -62,7 +49,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ModelObject",
+      "community_name": "initializeRenderer",
       "file_type": "code",
       "norm_label": "modelobject",
       "source_file": "src/main.cpp",
@@ -75,11 +62,24 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 2,
-      "community_name": "ModelObject",
+      "community_name": "initializeRenderer",
       "file_type": "code",
       "norm_label": "modelpart",
       "source_file": "src/main.cpp",
       "source_location": "L170"
+    },
+    {
+      "id": "src_main_skyvertex",
+      "label": "SkyVertex",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "skyvertex",
+      "source_file": "src/main.cpp",
+      "source_location": "L165"
     },
     {
       "id": "src_main_pastrun",
@@ -88,7 +88,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "UiVertex",
+      "community_name": "PastRun",
       "file_type": "code",
       "norm_label": "pastrun",
       "source_file": "src/main.cpp",
@@ -100,8 +100,8 @@
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
+      "community": 4,
+      "community_name": "Vertex",
       "file_type": "code",
       "norm_label": "uivertex",
       "source_file": "src/main.cpp",
@@ -182,7 +182,19 @@
       "file_type": "code",
       "norm_label": "activateroute()",
       "source_file": "src/main.cpp",
-      "source_location": "L1140"
+      "source_location": "L1137"
+    },
+    {
+      "id": "src_main_adjustsetting",
+      "label": "adjustSetting()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "main.cpp",
+      "file_type": "code",
+      "norm_label": "adjustsetting()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1310"
     },
     {
       "id": "src_main_atfloor",
@@ -197,6 +209,18 @@
       "source_location": "L925"
     },
     {
+      "id": "src_main_begingame",
+      "label": "beginGame()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "main.cpp",
+      "file_type": "code",
+      "norm_label": "begingame()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1115"
+    },
+    {
       "id": "src_main_boundaryradius",
       "label": "boundaryRadius()",
       "_callable": true,
@@ -207,18 +231,6 @@
       "norm_label": "boundaryradius()",
       "source_file": "src/main.cpp",
       "source_location": "L346"
-    },
-    {
-      "id": "src_main_buildsky",
-      "label": "buildSky()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "buildsky()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1955"
     },
     {
       "id": "src_main_canstand",
@@ -233,52 +245,40 @@
       "source_location": "L935"
     },
     {
-      "id": "src_main_compileshader",
-      "label": "compileShader()",
+      "id": "src_main_capturemouse",
+      "label": "captureMouse()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "compileshader()",
+      "norm_label": "capturemouse()",
       "source_file": "src/main.cpp",
-      "source_location": "L363"
+      "source_location": "L961"
     },
     {
-      "id": "src_main_configurevertexarray",
-      "label": "configureVertexArray()",
+      "id": "src_main_closesettings",
+      "label": "closeSettings()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "configurevertexarray()",
+      "norm_label": "closesettings()",
       "source_file": "src/main.cpp",
-      "source_location": "L1730"
+      "source_location": "L1305"
     },
     {
-      "id": "src_main_createshadowresources",
-      "label": "createShadowResources()",
+      "id": "src_main_collectbatteries",
+      "label": "collectBatteries()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "createshadowresources()",
+      "norm_label": "collectbatteries()",
       "source_file": "src/main.cpp",
-      "source_location": "L1780"
-    },
-    {
-      "id": "src_main_createwindowandcontext",
-      "label": "createWindowAndContext()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "createwindowandcontext()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1458"
+      "source_location": "L1037"
     },
     {
       "id": "src_main_generatemaze",
@@ -293,74 +293,16 @@
       "source_location": "L684"
     },
     {
-      "id": "src_main_initializerenderer",
-      "label": "initializeRenderer()",
+      "id": "src_main_initialbattery",
+      "label": "initialBattery()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "initializerenderer()",
+      "norm_label": "initialbattery()",
       "source_file": "src/main.cpp",
-      "source_location": "L1974"
-    },
-    {
-      "id": "src_main_loadgl",
-      "label": "loadGl()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "loadgl()",
-      "source_file": "src/main.cpp",
-      "source_location": "L330"
-    },
-    {
-      "id": "src_main_loadimagetexture",
-      "label": "loadImageTexture()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "metadata": {
-        "unresolved_calls": [
-          {
-            "callee": "GetLastStatus",
-            "receiver_type": "Bitmap",
-            "lang": "cpp",
-            "line": "L1805"
-          },
-          {
-            "callee": "GetWidth",
-            "receiver_type": "Bitmap",
-            "lang": "cpp",
-            "line": "L1806"
-          },
-          {
-            "callee": "GetHeight",
-            "receiver_type": "Bitmap",
-            "lang": "cpp",
-            "line": "L1806"
-          },
-          {
-            "callee": "LockBits",
-            "receiver_type": "Bitmap",
-            "lang": "cpp",
-            "line": "L1810"
-          },
-          {
-            "callee": "UnlockBits",
-            "receiver_type": "Bitmap",
-            "lang": "cpp",
-            "line": "L1813"
-          }
-        ]
-      },
-      "norm_label": "loadimagetexture()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1802"
+      "source_location": "L980"
     },
     {
       "id": "src_main_loadmap",
@@ -375,88 +317,112 @@
       "source_location": "L892"
     },
     {
-      "id": "src_main_loadobjmodel",
-      "label": "loadObjModel()",
+      "id": "src_main_moveplayer",
+      "label": "movePlayer()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "loadobjmodel()",
+      "norm_label": "moveplayer()",
       "source_file": "src/main.cpp",
-      "source_location": "L1847"
+      "source_location": "L2049"
     },
     {
-      "id": "src_main_loadpastruns",
-      "label": "loadPastRuns()",
+      "id": "src_main_opensettings",
+      "label": "openSettings()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "loadpastruns()",
+      "norm_label": "opensettings()",
       "source_file": "src/main.cpp",
-      "source_location": "L1007"
+      "source_location": "L1299"
     },
     {
-      "id": "src_main_loadppm",
-      "label": "loadPpm()",
+      "id": "src_main_playsound",
+      "label": "playSound()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "loadppm()",
+      "norm_label": "playsound()",
       "source_file": "src/main.cpp",
-      "source_location": "L1754"
+      "source_location": "L312"
     },
     {
-      "id": "src_main_loadproc",
-      "label": "loadProc()",
+      "id": "src_main_randomunit",
+      "label": "randomUnit()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "loadproc()",
+      "norm_label": "randomunit()",
       "source_file": "src/main.cpp",
-      "source_location": "L319"
+      "source_location": "L974"
     },
     {
-      "id": "src_main_loadtexture",
-      "label": "loadTexture()",
+      "id": "src_main_recordpastrun",
+      "label": "recordPastRun()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "loadtexture()",
+      "norm_label": "recordpastrun()",
       "source_file": "src/main.cpp",
-      "source_location": "L1764"
+      "source_location": "L1025"
     },
     {
-      "id": "src_main_makeprogram",
-      "label": "makeProgram()",
+      "id": "src_main_regeneratemaze",
+      "label": "regenerateMaze()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "makeprogram()",
+      "norm_label": "regeneratemaze()",
       "source_file": "src/main.cpp",
-      "source_location": "L379"
+      "source_location": "L919"
     },
     {
-      "id": "src_main_readseedargument",
-      "label": "readSeedArgument()",
+      "id": "src_main_resetrunstate",
+      "label": "resetRunState()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "readseedargument()",
+      "norm_label": "resetrunstate()",
       "source_file": "src/main.cpp",
-      "source_location": "L2457"
+      "source_location": "L988"
+    },
+    {
+      "id": "src_main_restart",
+      "label": "restart()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "main.cpp",
+      "file_type": "code",
+      "norm_label": "restart()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1101"
+    },
+    {
+      "id": "src_main_returntomenu",
+      "label": "returnToMenu()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "main.cpp",
+      "file_type": "code",
+      "norm_label": "returntomenu()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1125"
     },
     {
       "id": "src_main_routecooldownlength",
@@ -471,6 +437,30 @@
       "source_location": "L984"
     },
     {
+      "id": "src_main_saverunrecord",
+      "label": "saveRunRecord()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "main.cpp",
+      "file_type": "code",
+      "norm_label": "saverunrecord()",
+      "source_file": "src/main.cpp",
+      "source_location": "L999"
+    },
+    {
+      "id": "src_main_savesettings",
+      "label": "saveSettings()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "main.cpp",
+      "file_type": "code",
+      "norm_label": "savesettings()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1267"
+    },
+    {
       "id": "src_main_sectorsforring",
       "label": "sectorsForRing()",
       "_callable": true,
@@ -483,16 +473,28 @@
       "source_location": "L151"
     },
     {
-      "id": "src_main_setpixelformat",
-      "label": "setPixelFormat()",
+      "id": "src_main_setresolution",
+      "label": "setResolution()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "setpixelformat()",
+      "norm_label": "setresolution()",
       "source_file": "src/main.cpp",
-      "source_location": "L1448"
+      "source_location": "L1282"
+    },
+    {
+      "id": "src_main_toggleflashlight",
+      "label": "toggleFlashlight()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "main.cpp",
+      "file_type": "code",
+      "norm_label": "toggleflashlight()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1247"
     },
     {
       "id": "src_main_updateatmosphere",
@@ -507,286 +509,12 @@
       "source_location": "L1073"
     },
     {
-      "id": "src_main_winmain",
-      "label": "WinMain()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "metadata": {
-        "unresolved_calls": [
-          {
-            "callee": "GdiplusStartup",
-            "receiver_type": "Gdiplus",
-            "lang": "cpp",
-            "line": "L2475"
-          },
-          {
-            "callee": "GdiplusShutdown",
-            "receiver_type": "Gdiplus",
-            "lang": "cpp",
-            "line": "L2483"
-          },
-          {
-            "callee": "now",
-            "receiver_type": "Clock",
-            "lang": "cpp",
-            "line": "L2499"
-          }
-        ]
-      },
-      "norm_label": "winmain()",
-      "source_file": "src/main.cpp",
-      "source_location": "L2472"
-    },
-    {
-      "id": "src_main_adjustsetting",
-      "label": "adjustSetting()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "adjustsetting()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1318"
-    },
-    {
-      "id": "src_main_begingame",
-      "label": "beginGame()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "begingame()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1116"
-    },
-    {
-      "id": "src_main_capturemouse",
-      "label": "captureMouse()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "capturemouse()",
-      "source_file": "src/main.cpp",
-      "source_location": "L961"
-    },
-    {
-      "id": "src_main_closesettings",
-      "label": "closeSettings()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "closesettings()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1313"
-    },
-    {
-      "id": "src_main_collectbatteries",
-      "label": "collectBatteries()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "collectbatteries()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1037"
-    },
-    {
-      "id": "src_main_initialbattery",
-      "label": "initialBattery()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "initialbattery()",
-      "source_file": "src/main.cpp",
-      "source_location": "L980"
-    },
-    {
-      "id": "src_main_moveplayer",
-      "label": "movePlayer()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "moveplayer()",
-      "source_file": "src/main.cpp",
-      "source_location": "L2068"
-    },
-    {
-      "id": "src_main_openrunmenu",
-      "label": "openRunMenu()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "openrunmenu()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1270"
-    },
-    {
-      "id": "src_main_opensettings",
-      "label": "openSettings()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "opensettings()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1307"
-    },
-    {
-      "id": "src_main_playsound",
-      "label": "playSound()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "playsound()",
-      "source_file": "src/main.cpp",
-      "source_location": "L312"
-    },
-    {
-      "id": "src_main_randomunit",
-      "label": "randomUnit()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "randomunit()",
-      "source_file": "src/main.cpp",
-      "source_location": "L974"
-    },
-    {
-      "id": "src_main_recordpastrun",
-      "label": "recordPastRun()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "recordpastrun()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1025"
-    },
-    {
-      "id": "src_main_regeneratemaze",
-      "label": "regenerateMaze()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "regeneratemaze()",
-      "source_file": "src/main.cpp",
-      "source_location": "L919"
-    },
-    {
-      "id": "src_main_resetrunstate",
-      "label": "resetRunState()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "resetrunstate()",
-      "source_file": "src/main.cpp",
-      "source_location": "L988"
-    },
-    {
-      "id": "src_main_restart",
-      "label": "restart()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "restart()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1101"
-    },
-    {
-      "id": "src_main_returntomenu",
-      "label": "returnToMenu()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "returntomenu()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1127"
-    },
-    {
-      "id": "src_main_saverunrecord",
-      "label": "saveRunRecord()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "saverunrecord()",
-      "source_file": "src/main.cpp",
-      "source_location": "L999"
-    },
-    {
-      "id": "src_main_savesettings",
-      "label": "saveSettings()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "savesettings()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1275"
-    },
-    {
-      "id": "src_main_setresolution",
-      "label": "setResolution()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "setresolution()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1290"
-    },
-    {
-      "id": "src_main_toggleflashlight",
-      "label": "toggleFlashlight()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "toggleflashlight()",
-      "source_file": "src/main.cpp",
-      "source_location": "L1250"
-    },
-    {
       "id": "src_main_updateflashlight",
       "label": "updateFlashlight()",
       "_callable": true,
       "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
+      "community": 1,
+      "community_name": "main.cpp",
       "file_type": "code",
       "norm_label": "updateflashlight()",
       "source_file": "src/main.cpp",
@@ -797,8 +525,8 @@
       "label": "uploadMazeGeometry()",
       "_callable": true,
       "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
+      "community": 1,
+      "community_name": "main.cpp",
       "file_type": "code",
       "norm_label": "uploadmazegeometry()",
       "source_file": "src/main.cpp",
@@ -809,96 +537,296 @@
       "label": "useBattery()",
       "_callable": true,
       "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
+      "community": 1,
+      "community_name": "main.cpp",
       "file_type": "code",
       "norm_label": "usebattery()",
       "source_file": "src/main.cpp",
-      "source_location": "L1258"
+      "source_location": "L1255"
     },
     {
       "id": "src_main_windowproc",
       "label": "windowProc()",
       "_callable": true,
       "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
+      "community": 1,
+      "community_name": "main.cpp",
       "file_type": "code",
       "norm_label": "windowproc()",
       "source_file": "src/main.cpp",
-      "source_location": "L1344"
+      "source_location": "L1336"
     },
     {
-      "id": "src_main_centeredtext",
-      "label": "centeredText()",
+      "id": "src_main_createwindowandcontext",
+      "label": "createWindowAndContext()",
       "_callable": true,
       "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
+      "community": 10,
+      "community_name": "WinMain",
       "file_type": "code",
-      "norm_label": "centeredtext()",
+      "norm_label": "createwindowandcontext()",
       "source_file": "src/main.cpp",
-      "source_location": "L2178"
+      "source_location": "L1439"
     },
     {
-      "id": "src_main_formattime",
-      "label": "formatTime()",
+      "id": "src_main_loadpastruns",
+      "label": "loadPastRuns()",
       "_callable": true,
       "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
+      "community": 10,
+      "community_name": "WinMain",
       "file_type": "code",
-      "norm_label": "formattime()",
+      "norm_label": "loadpastruns()",
       "source_file": "src/main.cpp",
-      "source_location": "L956"
+      "source_location": "L1007"
     },
     {
-      "id": "src_main_glyphindex",
-      "label": "glyphIndex()",
+      "id": "src_main_loadproc",
+      "label": "loadProc()",
       "_callable": true,
       "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
+      "community": 10,
+      "community_name": "WinMain",
       "file_type": "code",
-      "norm_label": "glyphindex()",
+      "norm_label": "loadproc()",
       "source_file": "src/main.cpp",
-      "source_location": "L2152"
+      "source_location": "L319"
     },
     {
-      "id": "src_main_renderui",
-      "label": "renderUi()",
+      "id": "src_main_readseedargument",
+      "label": "readSeedArgument()",
       "_callable": true,
       "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
+      "community": 10,
+      "community_name": "WinMain",
       "file_type": "code",
-      "norm_label": "renderui()",
+      "norm_label": "readseedargument()",
       "source_file": "src/main.cpp",
-      "source_location": "L2183"
+      "source_location": "L2423"
     },
     {
-      "id": "src_main_uirect",
-      "label": "uiRect()",
+      "id": "src_main_setpixelformat",
+      "label": "setPixelFormat()",
       "_callable": true,
       "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
+      "community": 10,
+      "community_name": "WinMain",
       "file_type": "code",
-      "norm_label": "uirect()",
+      "norm_label": "setpixelformat()",
       "source_file": "src/main.cpp",
-      "source_location": "L2128"
+      "source_location": "L1429"
     },
     {
-      "id": "src_main_uitext",
-      "label": "uiText()",
+      "id": "src_main_winmain",
+      "label": "WinMain()",
       "_callable": true,
       "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
+      "community": 10,
+      "community_name": "WinMain",
       "file_type": "code",
-      "norm_label": "uitext()",
+      "metadata": {
+        "unresolved_calls": [
+          {
+            "callee": "GdiplusStartup",
+            "receiver_type": "Gdiplus",
+            "lang": "cpp",
+            "line": "L2441"
+          },
+          {
+            "callee": "GdiplusShutdown",
+            "receiver_type": "Gdiplus",
+            "lang": "cpp",
+            "line": "L2449"
+          },
+          {
+            "callee": "now",
+            "receiver_type": "Clock",
+            "lang": "cpp",
+            "line": "L2465"
+          }
+        ]
+      },
+      "norm_label": "winmain()",
       "source_file": "src/main.cpp",
-      "source_location": "L2158"
+      "source_location": "L2438"
+    },
+    {
+      "id": "src_main_buildsky",
+      "label": "buildSky()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "buildsky()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1936"
+    },
+    {
+      "id": "src_main_compileshader",
+      "label": "compileShader()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "compileshader()",
+      "source_file": "src/main.cpp",
+      "source_location": "L363"
+    },
+    {
+      "id": "src_main_configurevertexarray",
+      "label": "configureVertexArray()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "configurevertexarray()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1711"
+    },
+    {
+      "id": "src_main_createshadowresources",
+      "label": "createShadowResources()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "createshadowresources()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1761"
+    },
+    {
+      "id": "src_main_drawmodel",
+      "label": "drawModel()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "drawmodel()",
+      "source_file": "src/main.cpp",
+      "source_location": "L2306"
+    },
+    {
+      "id": "src_main_initializerenderer",
+      "label": "initializeRenderer()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "initializerenderer()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1955"
+    },
+    {
+      "id": "src_main_loadgl",
+      "label": "loadGl()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "loadgl()",
+      "source_file": "src/main.cpp",
+      "source_location": "L330"
+    },
+    {
+      "id": "src_main_loadimagetexture",
+      "label": "loadImageTexture()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "metadata": {
+        "unresolved_calls": [
+          {
+            "callee": "GetLastStatus",
+            "receiver_type": "Bitmap",
+            "lang": "cpp",
+            "line": "L1786"
+          },
+          {
+            "callee": "GetWidth",
+            "receiver_type": "Bitmap",
+            "lang": "cpp",
+            "line": "L1787"
+          },
+          {
+            "callee": "GetHeight",
+            "receiver_type": "Bitmap",
+            "lang": "cpp",
+            "line": "L1787"
+          },
+          {
+            "callee": "LockBits",
+            "receiver_type": "Bitmap",
+            "lang": "cpp",
+            "line": "L1791"
+          },
+          {
+            "callee": "UnlockBits",
+            "receiver_type": "Bitmap",
+            "lang": "cpp",
+            "line": "L1794"
+          }
+        ]
+      },
+      "norm_label": "loadimagetexture()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1783"
+    },
+    {
+      "id": "src_main_loadobjmodel",
+      "label": "loadObjModel()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "loadobjmodel()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1828"
+    },
+    {
+      "id": "src_main_loadppm",
+      "label": "loadPpm()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "loadppm()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1735"
+    },
+    {
+      "id": "src_main_loadtexture",
+      "label": "loadTexture()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "loadtexture()",
+      "source_file": "src/main.cpp",
+      "source_location": "L1745"
+    },
+    {
+      "id": "src_main_makeprogram",
+      "label": "makeProgram()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "makeprogram()",
+      "source_file": "src/main.cpp",
+      "source_location": "L379"
     },
     {
       "id": "src_main_addbox",
@@ -970,7 +898,7 @@
       "file_type": "code",
       "norm_label": "basistransform()",
       "source_file": "src/main.cpp",
-      "source_location": "L2333"
+      "source_location": "L2299"
     },
     {
       "id": "src_main_buildmaze",
@@ -983,6 +911,18 @@
       "norm_label": "buildmaze()",
       "source_file": "src/main.cpp",
       "source_location": "L518"
+    },
+    {
+      "id": "src_main_centeredtext",
+      "label": "centeredText()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Vertex",
+      "file_type": "code",
+      "norm_label": "centeredtext()",
+      "source_file": "src/main.cpp",
+      "source_location": "L2159"
     },
     {
       "id": "src_main_cross",
@@ -1009,16 +949,28 @@
       "source_location": "L405"
     },
     {
-      "id": "src_main_drawmodel",
-      "label": "drawModel()",
+      "id": "src_main_formattime",
+      "label": "formatTime()",
       "_callable": true,
       "_origin": "ast",
       "community": 4,
       "community_name": "Vertex",
       "file_type": "code",
-      "norm_label": "drawmodel()",
+      "norm_label": "formattime()",
       "source_file": "src/main.cpp",
-      "source_location": "L2340"
+      "source_location": "L956"
+    },
+    {
+      "id": "src_main_glyphindex",
+      "label": "glyphIndex()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Vertex",
+      "file_type": "code",
+      "norm_label": "glyphindex()",
+      "source_file": "src/main.cpp",
+      "source_location": "L2133"
     },
     {
       "id": "src_main_multiplymatrix",
@@ -1066,7 +1018,43 @@
       "file_type": "code",
       "norm_label": "render()",
       "source_file": "src/main.cpp",
-      "source_location": "L2354"
+      "source_location": "L2320"
+    },
+    {
+      "id": "src_main_renderui",
+      "label": "renderUi()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Vertex",
+      "file_type": "code",
+      "norm_label": "renderui()",
+      "source_file": "src/main.cpp",
+      "source_location": "L2164"
+    },
+    {
+      "id": "src_main_uirect",
+      "label": "uiRect()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Vertex",
+      "file_type": "code",
+      "norm_label": "uirect()",
+      "source_file": "src/main.cpp",
+      "source_location": "L2109"
+    },
+    {
+      "id": "src_main_uitext",
+      "label": "uiText()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Vertex",
+      "file_type": "code",
+      "norm_label": "uitext()",
+      "source_file": "src/main.cpp",
+      "source_location": "L2139"
     },
     {
       "id": "src_main_viewmatrix",
@@ -1944,17 +1932,6 @@
       "source_location": "L285"
     },
     {
-      "id": "src_main_game_showrunmenu",
-      "label": "showRunMenu",
-      "_origin": "ast",
-      "community": 0,
-      "community_name": "Game",
-      "file_type": "code",
-      "norm_label": "showrunmenu",
-      "source_file": "src/main.cpp",
-      "source_location": "L285"
-    },
-    {
       "id": "src_main_game_showsettings",
       "label": "showSettings",
       "_origin": "ast",
@@ -2406,79 +2383,35 @@
       "source_location": ""
     },
     {
-      "id": "glenum",
-      "label": "GLenum",
+      "id": "hwnd",
+      "label": "HWND",
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "glenum",
+      "norm_label": "hwnd",
       "source_file": "",
       "source_location": ""
     },
     {
-      "id": "glint",
-      "label": "GLint",
+      "id": "lparam",
+      "label": "LPARAM",
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "glint",
+      "norm_label": "lparam",
       "source_file": "",
       "source_location": ""
     },
     {
-      "id": "gluint",
-      "label": "GLuint",
+      "id": "lresult",
+      "label": "LRESULT",
       "_origin": "ast",
       "community": 1,
       "community_name": "main.cpp",
       "file_type": "code",
-      "norm_label": "gluint",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "hdc",
-      "label": "HDC",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "hdc",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "hinstance",
-      "label": "HINSTANCE",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "hinstance",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "lpstr",
-      "label": "LPSTR",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "lpstr",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "path",
-      "label": "path",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "path",
+      "norm_label": "lresult",
       "source_file": "",
       "source_location": ""
     },
@@ -2494,72 +2427,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_main_skyvertex_u",
-      "label": "u",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "u",
-      "source_file": "src/main.cpp",
-      "source_location": "L165"
-    },
-    {
-      "id": "src_main_skyvertex_v",
-      "label": "v",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "v",
-      "source_file": "src/main.cpp",
-      "source_location": "L165"
-    },
-    {
-      "id": "src_main_skyvertex_x",
-      "label": "x",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "x",
-      "source_file": "src/main.cpp",
-      "source_location": "L165"
-    },
-    {
-      "id": "src_main_skyvertex_y",
-      "label": "y",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "y",
-      "source_file": "src/main.cpp",
-      "source_location": "L165"
-    },
-    {
-      "id": "src_main_skyvertex_z",
-      "label": "z",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "z",
-      "source_file": "src/main.cpp",
-      "source_location": "L165"
-    },
-    {
-      "id": "t",
-      "label": "T",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "main.cpp",
-      "file_type": "code",
-      "norm_label": "t",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
       "id": "unordered_map",
       "label": "unordered_map",
       "_origin": "ast",
@@ -2571,44 +2438,11 @@
       "source_location": ""
     },
     {
-      "id": "hwnd",
-      "label": "HWND",
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "hwnd",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "lparam",
-      "label": "LPARAM",
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "lparam",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
-      "id": "lresult",
-      "label": "LRESULT",
-      "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
-      "file_type": "code",
-      "norm_label": "lresult",
-      "source_file": "",
-      "source_location": ""
-    },
-    {
       "id": "wchar_t",
       "label": "wchar_t",
       "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
+      "community": 1,
+      "community_name": "main.cpp",
       "file_type": "code",
       "norm_label": "wchar_t",
       "source_file": "",
@@ -2618,10 +2452,54 @@
       "id": "wparam",
       "label": "WPARAM",
       "_origin": "ast",
-      "community": 10,
-      "community_name": "windowProc",
+      "community": 1,
+      "community_name": "main.cpp",
       "file_type": "code",
       "norm_label": "wparam",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "hdc",
+      "label": "HDC",
+      "_origin": "ast",
+      "community": 10,
+      "community_name": "WinMain",
+      "file_type": "code",
+      "norm_label": "hdc",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "hinstance",
+      "label": "HINSTANCE",
+      "_origin": "ast",
+      "community": 10,
+      "community_name": "WinMain",
+      "file_type": "code",
+      "norm_label": "hinstance",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "lpstr",
+      "label": "LPSTR",
+      "_origin": "ast",
+      "community": 10,
+      "community_name": "WinMain",
+      "file_type": "code",
+      "norm_label": "lpstr",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "t",
+      "label": "T",
+      "_origin": "ast",
+      "community": 10,
+      "community_name": "WinMain",
+      "file_type": "code",
+      "norm_label": "t",
       "source_file": "",
       "source_location": ""
     },
@@ -2714,13 +2592,57 @@
       "source_location": "L168"
     },
     {
+      "id": "glenum",
+      "label": "GLenum",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "glenum",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "glint",
+      "label": "GLint",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "glint",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
       "id": "glsizei",
       "label": "GLsizei",
       "_origin": "ast",
       "community": 2,
-      "community_name": "ModelObject",
+      "community_name": "initializeRenderer",
       "file_type": "code",
       "norm_label": "glsizei",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "gluint",
+      "label": "GLuint",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "gluint",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "path",
+      "label": "path",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "path",
       "source_file": "",
       "source_location": ""
     },
@@ -2729,7 +2651,7 @@
       "label": "loaded",
       "_origin": "ast",
       "community": 2,
-      "community_name": "ModelObject",
+      "community_name": "initializeRenderer",
       "file_type": "code",
       "norm_label": "loaded",
       "source_file": "src/main.cpp",
@@ -2740,7 +2662,7 @@
       "label": "parts",
       "_origin": "ast",
       "community": 2,
-      "community_name": "ModelObject",
+      "community_name": "initializeRenderer",
       "file_type": "code",
       "norm_label": "parts",
       "source_file": "src/main.cpp",
@@ -2751,7 +2673,7 @@
       "label": "vao",
       "_origin": "ast",
       "community": 2,
-      "community_name": "ModelObject",
+      "community_name": "initializeRenderer",
       "file_type": "code",
       "norm_label": "vao",
       "source_file": "src/main.cpp",
@@ -2762,7 +2684,7 @@
       "label": "vbo",
       "_origin": "ast",
       "community": 2,
-      "community_name": "ModelObject",
+      "community_name": "initializeRenderer",
       "file_type": "code",
       "norm_label": "vbo",
       "source_file": "src/main.cpp",
@@ -2773,7 +2695,7 @@
       "label": "count",
       "_origin": "ast",
       "community": 2,
-      "community_name": "ModelObject",
+      "community_name": "initializeRenderer",
       "file_type": "code",
       "norm_label": "count",
       "source_file": "src/main.cpp",
@@ -2784,7 +2706,7 @@
       "label": "first",
       "_origin": "ast",
       "community": 2,
-      "community_name": "ModelObject",
+      "community_name": "initializeRenderer",
       "file_type": "code",
       "norm_label": "first",
       "source_file": "src/main.cpp",
@@ -2795,7 +2717,7 @@
       "label": "material",
       "_origin": "ast",
       "community": 2,
-      "community_name": "ModelObject",
+      "community_name": "initializeRenderer",
       "file_type": "code",
       "norm_label": "material",
       "source_file": "src/main.cpp",
@@ -2806,18 +2728,73 @@
       "label": "texture",
       "_origin": "ast",
       "community": 2,
-      "community_name": "ModelObject",
+      "community_name": "initializeRenderer",
       "file_type": "code",
       "norm_label": "texture",
       "source_file": "src/main.cpp",
       "source_location": "L170"
     },
     {
+      "id": "src_main_skyvertex_u",
+      "label": "u",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "u",
+      "source_file": "src/main.cpp",
+      "source_location": "L165"
+    },
+    {
+      "id": "src_main_skyvertex_v",
+      "label": "v",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "v",
+      "source_file": "src/main.cpp",
+      "source_location": "L165"
+    },
+    {
+      "id": "src_main_skyvertex_x",
+      "label": "x",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "x",
+      "source_file": "src/main.cpp",
+      "source_location": "L165"
+    },
+    {
+      "id": "src_main_skyvertex_y",
+      "label": "y",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "y",
+      "source_file": "src/main.cpp",
+      "source_location": "L165"
+    },
+    {
+      "id": "src_main_skyvertex_z",
+      "label": "z",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "initializeRenderer",
+      "file_type": "code",
+      "norm_label": "z",
+      "source_file": "src/main.cpp",
+      "source_location": "L165"
+    },
+    {
       "id": "src_main_pastrun_elapsed",
       "label": "elapsed",
       "_origin": "ast",
       "community": 3,
-      "community_name": "UiVertex",
+      "community_name": "PastRun",
       "file_type": "code",
       "norm_label": "elapsed",
       "source_file": "src/main.cpp",
@@ -2828,7 +2805,7 @@
       "label": "routeUses",
       "_origin": "ast",
       "community": 3,
-      "community_name": "UiVertex",
+      "community_name": "PastRun",
       "file_type": "code",
       "norm_label": "routeuses",
       "source_file": "src/main.cpp",
@@ -2839,7 +2816,7 @@
       "label": "seed",
       "_origin": "ast",
       "community": 3,
-      "community_name": "UiVertex",
+      "community_name": "PastRun",
       "file_type": "code",
       "norm_label": "seed",
       "source_file": "src/main.cpp",
@@ -2850,88 +2827,11 @@
       "label": "timestamp",
       "_origin": "ast",
       "community": 3,
-      "community_name": "UiVertex",
+      "community_name": "PastRun",
       "file_type": "code",
       "norm_label": "timestamp",
       "source_file": "src/main.cpp",
       "source_location": "L169"
-    },
-    {
-      "id": "src_main_uivertex_a",
-      "label": "a",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
-      "file_type": "code",
-      "norm_label": "a",
-      "source_file": "src/main.cpp",
-      "source_location": "L166"
-    },
-    {
-      "id": "src_main_uivertex_b",
-      "label": "b",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
-      "file_type": "code",
-      "norm_label": "b",
-      "source_file": "src/main.cpp",
-      "source_location": "L166"
-    },
-    {
-      "id": "src_main_uivertex_g",
-      "label": "g",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
-      "file_type": "code",
-      "norm_label": "g",
-      "source_file": "src/main.cpp",
-      "source_location": "L166"
-    },
-    {
-      "id": "src_main_uivertex_r",
-      "label": "r",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
-      "file_type": "code",
-      "norm_label": "r",
-      "source_file": "src/main.cpp",
-      "source_location": "L166"
-    },
-    {
-      "id": "src_main_uivertex_x",
-      "label": "x",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
-      "file_type": "code",
-      "norm_label": "x",
-      "source_file": "src/main.cpp",
-      "source_location": "L166"
-    },
-    {
-      "id": "src_main_uivertex_y",
-      "label": "y",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
-      "file_type": "code",
-      "norm_label": "y",
-      "source_file": "src/main.cpp",
-      "source_location": "L166"
-    },
-    {
-      "id": "string",
-      "label": "string",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "UiVertex",
-      "file_type": "code",
-      "norm_label": "string",
-      "source_file": "",
-      "source_location": ""
     },
     {
       "id": "array",
@@ -2943,6 +2843,72 @@
       "norm_label": "array",
       "source_file": "",
       "source_location": ""
+    },
+    {
+      "id": "src_main_uivertex_a",
+      "label": "a",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Vertex",
+      "file_type": "code",
+      "norm_label": "a",
+      "source_file": "src/main.cpp",
+      "source_location": "L166"
+    },
+    {
+      "id": "src_main_uivertex_b",
+      "label": "b",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Vertex",
+      "file_type": "code",
+      "norm_label": "b",
+      "source_file": "src/main.cpp",
+      "source_location": "L166"
+    },
+    {
+      "id": "src_main_uivertex_g",
+      "label": "g",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Vertex",
+      "file_type": "code",
+      "norm_label": "g",
+      "source_file": "src/main.cpp",
+      "source_location": "L166"
+    },
+    {
+      "id": "src_main_uivertex_r",
+      "label": "r",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Vertex",
+      "file_type": "code",
+      "norm_label": "r",
+      "source_file": "src/main.cpp",
+      "source_location": "L166"
+    },
+    {
+      "id": "src_main_uivertex_x",
+      "label": "x",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Vertex",
+      "file_type": "code",
+      "norm_label": "x",
+      "source_file": "src/main.cpp",
+      "source_location": "L166"
+    },
+    {
+      "id": "src_main_uivertex_y",
+      "label": "y",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Vertex",
+      "file_type": "code",
+      "norm_label": "y",
+      "source_file": "src/main.cpp",
+      "source_location": "L166"
     },
     {
       "id": "src_main_vec3_x",
@@ -3119,6 +3085,17 @@
       "norm_label": "z",
       "source_file": "src/main.cpp",
       "source_location": "L160"
+    },
+    {
+      "id": "string",
+      "label": "string",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Vertex",
+      "file_type": "code",
+      "norm_label": "string",
+      "source_file": "",
+      "source_location": ""
     },
     {
       "id": "vector",
@@ -3552,7 +3529,7 @@
       "node_kind": "heading",
       "norm_label": "flashlight credit",
       "source_file": "README.md",
-      "source_location": "L56"
+      "source_location": "L55"
     },
     {
       "id": "readme_maze_escape",
@@ -3588,7 +3565,7 @@
       "node_kind": "heading",
       "norm_label": "textures",
       "source_file": "README.md",
-      "source_location": "L52"
+      "source_location": "L51"
     },
     {
       "id": "tasks_plan",
@@ -3949,7 +3926,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1155",
+      "source_location": "L1152",
       "weight": 1.0
     },
     {
@@ -3961,7 +3938,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1180",
+      "source_location": "L1177",
       "weight": 1.0
     },
     {
@@ -3973,7 +3950,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1234",
+      "source_location": "L1231",
       "weight": 1.0
     },
     {
@@ -3985,7 +3962,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1245",
+      "source_location": "L1242",
       "weight": 1.0
     },
     {
@@ -3997,7 +3974,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1247",
+      "source_location": "L1244",
       "weight": 1.0
     },
     {
@@ -4117,7 +4094,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1322",
+      "source_location": "L1314",
       "weight": 1.0
     },
     {
@@ -4129,7 +4106,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1339",
+      "source_location": "L1331",
       "weight": 1.0
     },
     {
@@ -4141,7 +4118,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1341",
+      "source_location": "L1333",
       "weight": 1.0
     },
     {
@@ -4165,7 +4142,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1121",
+      "source_location": "L1119",
       "weight": 1.0
     },
     {
@@ -4177,7 +4154,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1122",
+      "source_location": "L1120",
       "weight": 1.0
     },
     {
@@ -4189,7 +4166,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1123",
+      "source_location": "L1121",
       "weight": 1.0
     },
     {
@@ -4273,7 +4250,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2180",
+      "source_location": "L2161",
       "weight": 1.0
     },
     {
@@ -4285,7 +4262,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1315",
+      "source_location": "L1307",
       "weight": 1.0
     },
     {
@@ -4321,7 +4298,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1468",
+      "source_location": "L1449",
       "weight": 1.0
     },
     {
@@ -4333,7 +4310,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1488",
+      "source_location": "L1469",
       "weight": 1.0
     },
     {
@@ -4369,7 +4346,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1975",
+      "source_location": "L1956",
       "weight": 1.0
     },
     {
@@ -4381,7 +4358,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1976",
+      "source_location": "L1957",
       "weight": 1.0
     },
     {
@@ -4393,7 +4370,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2012",
+      "source_location": "L1993",
       "weight": 1.0
     },
     {
@@ -4405,7 +4382,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2020",
+      "source_location": "L2001",
       "weight": 1.0
     },
     {
@@ -4417,7 +4394,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2025",
+      "source_location": "L2006",
       "weight": 1.0
     },
     {
@@ -4429,7 +4406,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2028",
+      "source_location": "L2009",
       "weight": 1.0
     },
     {
@@ -4441,7 +4418,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2034",
+      "source_location": "L2015",
       "weight": 1.0
     },
     {
@@ -4453,7 +4430,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2060",
+      "source_location": "L2041",
       "weight": 1.0
     },
     {
@@ -4465,7 +4442,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2064",
+      "source_location": "L2045",
       "weight": 1.0
     },
     {
@@ -4489,7 +4466,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1870",
+      "source_location": "L1851",
       "weight": 1.0
     },
     {
@@ -4501,7 +4478,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1896",
+      "source_location": "L1877",
       "weight": 1.0
     },
     {
@@ -4513,7 +4490,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1940",
+      "source_location": "L1921",
       "weight": 1.0
     },
     {
@@ -4525,7 +4502,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1949",
+      "source_location": "L1930",
       "weight": 1.0
     },
     {
@@ -4537,7 +4514,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1767",
+      "source_location": "L1748",
       "weight": 1.0
     },
     {
@@ -4561,7 +4538,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2073",
+      "source_location": "L2054",
       "weight": 1.0
     },
     {
@@ -4573,7 +4550,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2079",
+      "source_location": "L2060",
       "weight": 1.0
     },
     {
@@ -4585,7 +4562,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2092",
+      "source_location": "L2073",
       "weight": 1.0
     },
     {
@@ -4597,7 +4574,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2103",
+      "source_location": "L2084",
       "weight": 1.0
     },
     {
@@ -4609,7 +4586,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2111",
+      "source_location": "L2092",
       "weight": 1.0
     },
     {
@@ -4621,7 +4598,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2115",
+      "source_location": "L2096",
       "weight": 1.0
     },
     {
@@ -4633,7 +4610,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2120",
+      "source_location": "L2101",
       "weight": 1.0
     },
     {
@@ -4645,7 +4622,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2122",
+      "source_location": "L2103",
       "weight": 1.0
     },
     {
@@ -4657,19 +4634,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2123",
-      "weight": 1.0
-    },
-    {
-      "source": "src_main_openrunmenu",
-      "target": "src_main_capturemouse",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "src/main.cpp",
-      "source_location": "L1272",
+      "source_location": "L2104",
       "weight": 1.0
     },
     {
@@ -4681,7 +4646,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1310",
+      "source_location": "L1302",
       "weight": 1.0
     },
     {
@@ -4717,7 +4682,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2362",
+      "source_location": "L2328",
       "weight": 1.0
     },
     {
@@ -4729,7 +4694,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2362",
+      "source_location": "L2328",
       "weight": 1.0
     },
     {
@@ -4741,7 +4706,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2376",
+      "source_location": "L2342",
       "weight": 1.0
     },
     {
@@ -4753,7 +4718,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2377",
+      "source_location": "L2343",
       "weight": 1.0
     },
     {
@@ -4765,7 +4730,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2381",
+      "source_location": "L2347",
       "weight": 1.0
     },
     {
@@ -4777,7 +4742,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2450",
+      "source_location": "L2416",
       "weight": 1.0
     },
     {
@@ -4789,7 +4754,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2451",
+      "source_location": "L2417",
       "weight": 1.0
     },
     {
@@ -4801,7 +4766,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2453",
+      "source_location": "L2419",
       "weight": 1.0
     },
     {
@@ -4813,7 +4778,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2191",
+      "source_location": "L2172",
       "weight": 1.0
     },
     {
@@ -4825,7 +4790,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2194",
+      "source_location": "L2175",
       "weight": 1.0
     },
     {
@@ -4837,7 +4802,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2234",
+      "source_location": "L2215",
       "weight": 1.0
     },
     {
@@ -4849,7 +4814,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2240",
+      "source_location": "L2221",
       "weight": 1.0
     },
     {
@@ -4897,7 +4862,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1111",
+      "source_location": "L1110",
       "weight": 1.0
     },
     {
@@ -4909,7 +4874,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1112",
+      "source_location": "L1111",
       "weight": 1.0
     },
     {
@@ -4921,7 +4886,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1128",
+      "source_location": "L1126",
       "weight": 1.0
     },
     {
@@ -4933,7 +4898,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1136",
+      "source_location": "L1133",
       "weight": 1.0
     },
     {
@@ -4945,7 +4910,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1137",
+      "source_location": "L1134",
       "weight": 1.0
     },
     {
@@ -5005,7 +4970,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1255",
+      "source_location": "L1252",
       "weight": 1.0
     },
     {
@@ -5017,7 +4982,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2161",
+      "source_location": "L2142",
       "weight": 1.0
     },
     {
@@ -5029,7 +4994,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2165",
+      "source_location": "L2146",
       "weight": 1.0
     },
     {
@@ -5089,7 +5054,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1265",
+      "source_location": "L1262",
       "weight": 1.0
     },
     {
@@ -5101,7 +5066,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1267",
+      "source_location": "L1264",
       "weight": 1.0
     },
     {
@@ -5149,19 +5114,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1365",
-      "weight": 1.0
-    },
-    {
-      "source": "src_main_windowproc",
-      "target": "src_main_openrunmenu",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "src/main.cpp",
-      "source_location": "L1366",
+      "source_location": "L1356",
       "weight": 1.0
     },
     {
@@ -5173,7 +5126,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1368",
+      "source_location": "L1357",
       "weight": 1.0
     },
     {
@@ -5185,7 +5138,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1368",
+      "source_location": "L1357",
       "weight": 1.0
     },
     {
@@ -5197,7 +5150,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1383",
+      "source_location": "L1372",
       "weight": 1.0
     },
     {
@@ -5209,7 +5162,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1386",
+      "source_location": "L1375",
       "weight": 1.0
     },
     {
@@ -5221,7 +5174,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1389",
+      "source_location": "L1378",
       "weight": 1.0
     },
     {
@@ -5233,7 +5186,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1399",
+      "source_location": "L1388",
       "weight": 1.0
     },
     {
@@ -5245,7 +5198,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1410",
+      "source_location": "L1391",
       "weight": 1.0
     },
     {
@@ -5257,7 +5210,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1420",
+      "source_location": "L1401",
       "weight": 1.0
     },
     {
@@ -5269,7 +5222,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1421",
+      "source_location": "L1402",
       "weight": 1.0
     },
     {
@@ -5281,7 +5234,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1422",
+      "source_location": "L1403",
       "weight": 1.0
     },
     {
@@ -5293,7 +5246,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L1423",
+      "source_location": "L1404",
       "weight": 1.0
     },
     {
@@ -5305,7 +5258,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2480",
+      "source_location": "L2446",
       "weight": 1.0
     },
     {
@@ -5317,7 +5270,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2481",
+      "source_location": "L2447",
       "weight": 1.0
     },
     {
@@ -5329,7 +5282,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2486",
+      "source_location": "L2452",
       "weight": 1.0
     },
     {
@@ -5341,7 +5294,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2487",
+      "source_location": "L2453",
       "weight": 1.0
     },
     {
@@ -5353,7 +5306,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2492",
+      "source_location": "L2458",
       "weight": 1.0
     },
     {
@@ -5365,7 +5318,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2497",
+      "source_location": "L2463",
       "weight": 1.0
     },
     {
@@ -5377,7 +5330,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2508",
+      "source_location": "L2474",
       "weight": 1.0
     },
     {
@@ -5389,7 +5342,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2510",
+      "source_location": "L2476",
       "weight": 1.0
     },
     {
@@ -5401,7 +5354,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2511",
+      "source_location": "L2477",
       "weight": 1.0
     },
     {
@@ -5413,7 +5366,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2512",
+      "source_location": "L2478",
       "weight": 1.0
     },
     {
@@ -5425,7 +5378,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2514",
+      "source_location": "L2480",
       "weight": 1.0
     },
     {
@@ -5437,7 +5390,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/main.cpp",
-      "source_location": "L2516",
+      "source_location": "L2482",
       "weight": 1.0
     },
     {
@@ -6043,18 +5996,6 @@
     {
       "source": "src_main_game",
       "target": "src_main_game_showpastruns",
-      "relation": "defines",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "field",
-      "source_file": "src/main.cpp",
-      "source_location": "L285",
-      "weight": 1.0
-    },
-    {
-      "source": "src_main_game",
-      "target": "src_main_game_showrunmenu",
       "relation": "defines",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -8053,7 +7994,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "src/main.cpp",
-      "source_location": "L1955",
+      "source_location": "L1936",
       "weight": 1.0
     },
     {
@@ -8065,7 +8006,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "src/main.cpp",
-      "source_location": "L2178",
+      "source_location": "L2159",
       "weight": 1.0
     },
     {
@@ -8161,7 +8102,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "src/main.cpp",
-      "source_location": "L2128",
+      "source_location": "L2109",
       "weight": 1.0
     },
     {
@@ -8173,7 +8114,7 @@
       "confidence_score": 1.0,
       "context": "generic_arg",
       "source_file": "src/main.cpp",
-      "source_location": "L2158",
+      "source_location": "L2139",
       "weight": 1.0
     },
     {
@@ -8509,7 +8450,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1140",
+      "source_location": "L1137",
       "weight": 1.0
     },
     {
@@ -8629,7 +8570,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1318",
+      "source_location": "L1310",
       "weight": 1.0
     },
     {
@@ -8653,7 +8594,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2333",
+      "source_location": "L2299",
       "weight": 1.0
     },
     {
@@ -8665,7 +8606,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1116",
+      "source_location": "L1115",
       "weight": 1.0
     },
     {
@@ -8725,7 +8666,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2178",
+      "source_location": "L2159",
       "weight": 1.0
     },
     {
@@ -8737,7 +8678,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2178",
+      "source_location": "L2159",
       "weight": 1.0
     },
     {
@@ -8749,7 +8690,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2178",
+      "source_location": "L2159",
       "weight": 1.0
     },
     {
@@ -8761,7 +8702,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1313",
+      "source_location": "L1305",
       "weight": 1.0
     },
     {
@@ -8797,7 +8738,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1730",
+      "source_location": "L1711",
       "weight": 1.0
     },
     {
@@ -8809,7 +8750,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1780",
+      "source_location": "L1761",
       "weight": 1.0
     },
     {
@@ -8821,7 +8762,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1458",
+      "source_location": "L1439",
       "weight": 1.0
     },
     {
@@ -8833,7 +8774,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1458",
+      "source_location": "L1439",
       "weight": 1.0
     },
     {
@@ -8869,7 +8810,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2340",
+      "source_location": "L2306",
       "weight": 1.0
     },
     {
@@ -8881,7 +8822,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2340",
+      "source_location": "L2306",
       "weight": 1.0
     },
     {
@@ -8893,7 +8834,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2340",
+      "source_location": "L2306",
       "weight": 1.0
     },
     {
@@ -8929,7 +8870,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1974",
+      "source_location": "L1955",
       "weight": 1.0
     },
     {
@@ -8941,7 +8882,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1802",
+      "source_location": "L1783",
       "weight": 1.0
     },
     {
@@ -8965,7 +8906,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1847",
+      "source_location": "L1828",
       "weight": 1.0
     },
     {
@@ -8977,7 +8918,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1847",
+      "source_location": "L1828",
       "weight": 1.0
     },
     {
@@ -8989,7 +8930,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1847",
+      "source_location": "L1828",
       "weight": 1.0
     },
     {
@@ -9013,7 +8954,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1754",
+      "source_location": "L1735",
       "weight": 1.0
     },
     {
@@ -9025,7 +8966,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1754",
+      "source_location": "L1735",
       "weight": 1.0
     },
     {
@@ -9049,7 +8990,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1764",
+      "source_location": "L1745",
       "weight": 1.0
     },
     {
@@ -9061,7 +9002,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1764",
+      "source_location": "L1745",
       "weight": 1.0
     },
     {
@@ -9073,7 +9014,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2068",
+      "source_location": "L2049",
       "weight": 1.0
     },
     {
@@ -9101,18 +9042,6 @@
       "weight": 1.0
     },
     {
-      "source": "src_main_openrunmenu",
-      "target": "src_main_game",
-      "relation": "references",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "parameter_type",
-      "source_file": "src/main.cpp",
-      "source_location": "L1270",
-      "weight": 1.0
-    },
-    {
       "source": "src_main_opensettings",
       "target": "src_main_game",
       "relation": "references",
@@ -9121,7 +9050,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1307",
+      "source_location": "L1299",
       "weight": 1.0
     },
     {
@@ -9169,7 +9098,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2457",
+      "source_location": "L2423",
       "weight": 1.0
     },
     {
@@ -9205,7 +9134,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2354",
+      "source_location": "L2320",
       "weight": 1.0
     },
     {
@@ -9217,7 +9146,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2183",
+      "source_location": "L2164",
       "weight": 1.0
     },
     {
@@ -9253,7 +9182,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1127",
+      "source_location": "L1125",
       "weight": 1.0
     },
     {
@@ -9289,7 +9218,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1275",
+      "source_location": "L1267",
       "weight": 1.0
     },
     {
@@ -9301,7 +9230,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1448",
+      "source_location": "L1429",
       "weight": 1.0
     },
     {
@@ -9313,7 +9242,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1290",
+      "source_location": "L1282",
       "weight": 1.0
     },
     {
@@ -9385,7 +9314,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1250",
+      "source_location": "L1247",
       "weight": 1.0
     },
     {
@@ -9397,7 +9326,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2128",
+      "source_location": "L2109",
       "weight": 1.0
     },
     {
@@ -9409,7 +9338,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2128",
+      "source_location": "L2109",
       "weight": 1.0
     },
     {
@@ -9421,7 +9350,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2158",
+      "source_location": "L2139",
       "weight": 1.0
     },
     {
@@ -9433,7 +9362,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2158",
+      "source_location": "L2139",
       "weight": 1.0
     },
     {
@@ -9445,7 +9374,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2158",
+      "source_location": "L2139",
       "weight": 1.0
     },
     {
@@ -9493,7 +9422,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1258",
+      "source_location": "L1255",
       "weight": 1.0
     },
     {
@@ -9517,7 +9446,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1344",
+      "source_location": "L1336",
       "weight": 1.0
     },
     {
@@ -9529,7 +9458,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1344",
+      "source_location": "L1336",
       "weight": 1.0
     },
     {
@@ -9541,7 +9470,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1344",
+      "source_location": "L1336",
       "weight": 1.0
     },
     {
@@ -9553,7 +9482,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1344",
+      "source_location": "L1336",
       "weight": 1.0
     },
     {
@@ -9565,7 +9494,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2472",
+      "source_location": "L2438",
       "weight": 1.0
     },
     {
@@ -9577,7 +9506,7 @@
       "confidence_score": 1.0,
       "context": "parameter_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2472",
+      "source_location": "L2438",
       "weight": 1.0
     },
     {
@@ -9589,7 +9518,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "src/main.cpp",
-      "source_location": "L2333",
+      "source_location": "L2299",
       "weight": 1.0
     },
     {
@@ -9613,7 +9542,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1955",
+      "source_location": "L1936",
       "weight": 1.0
     },
     {
@@ -9637,7 +9566,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1802",
+      "source_location": "L1783",
       "weight": 1.0
     },
     {
@@ -9649,7 +9578,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1764",
+      "source_location": "L1745",
       "weight": 1.0
     },
     {
@@ -9697,7 +9626,7 @@
       "confidence_score": 1.0,
       "context": "return_type",
       "source_file": "src/main.cpp",
-      "source_location": "L1344",
+      "source_location": "L1336",
       "weight": 1.0
     },
     {
@@ -9763,7 +9692,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L52",
+      "source_location": "L51",
       "weight": 1.0
     },
     {
@@ -9774,7 +9703,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "README.md",
-      "source_location": "L56",
+      "source_location": "L55",
       "weight": 1.0
     },
     {
@@ -9851,7 +9780,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1116",
+      "source_location": "L1115",
       "weight": 1.0
     },
     {
@@ -9862,7 +9791,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1127",
+      "source_location": "L1125",
       "weight": 1.0
     },
     {
@@ -9873,7 +9802,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1140",
+      "source_location": "L1137",
       "weight": 1.0
     },
     {
@@ -9884,7 +9813,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1250",
+      "source_location": "L1247",
       "weight": 1.0
     },
     {
@@ -9895,18 +9824,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1258",
-      "weight": 1.0
-    },
-    {
-      "source": "src_main",
-      "target": "src_main_openrunmenu",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "src/main.cpp",
-      "source_location": "L1270",
+      "source_location": "L1255",
       "weight": 1.0
     },
     {
@@ -9917,7 +9835,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1275",
+      "source_location": "L1267",
       "weight": 1.0
     },
     {
@@ -9928,7 +9846,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1290",
+      "source_location": "L1282",
       "weight": 1.0
     },
     {
@@ -9939,7 +9857,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1307",
+      "source_location": "L1299",
       "weight": 1.0
     },
     {
@@ -9950,7 +9868,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1313",
+      "source_location": "L1305",
       "weight": 1.0
     },
     {
@@ -9961,7 +9879,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1318",
+      "source_location": "L1310",
       "weight": 1.0
     },
     {
@@ -9972,7 +9890,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1344",
+      "source_location": "L1336",
       "weight": 1.0
     },
     {
@@ -9983,7 +9901,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1448",
+      "source_location": "L1429",
       "weight": 1.0
     },
     {
@@ -9994,7 +9912,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1458",
+      "source_location": "L1439",
       "weight": 1.0
     },
     {
@@ -10098,6 +10016,17 @@
     },
     {
       "source": "src_main",
+      "target": "src_main_configurevertexarray",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/main.cpp",
+      "source_location": "L1711",
+      "weight": 1.0
+    },
+    {
+      "source": "src_main",
       "target": "src_main_wallarc",
       "relation": "contains",
       "_origin": "ast",
@@ -10109,24 +10038,13 @@
     },
     {
       "source": "src_main",
-      "target": "src_main_configurevertexarray",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "src/main.cpp",
-      "source_location": "L1730",
-      "weight": 1.0
-    },
-    {
-      "source": "src_main",
       "target": "src_main_loadppm",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1754",
+      "source_location": "L1735",
       "weight": 1.0
     },
     {
@@ -10137,7 +10055,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1764",
+      "source_location": "L1745",
       "weight": 1.0
     },
     {
@@ -10148,7 +10066,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1780",
+      "source_location": "L1761",
       "weight": 1.0
     },
     {
@@ -10159,7 +10077,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1802",
+      "source_location": "L1783",
       "weight": 1.0
     },
     {
@@ -10175,6 +10093,17 @@
     },
     {
       "source": "src_main",
+      "target": "src_main_loadobjmodel",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/main.cpp",
+      "source_location": "L1828",
+      "weight": 1.0
+    },
+    {
+      "source": "src_main",
       "target": "src_main_spatialaudio",
       "relation": "contains",
       "_origin": "ast",
@@ -10186,24 +10115,13 @@
     },
     {
       "source": "src_main",
-      "target": "src_main_loadobjmodel",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "src/main.cpp",
-      "source_location": "L1847",
-      "weight": 1.0
-    },
-    {
-      "source": "src_main",
       "target": "src_main_buildsky",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1955",
+      "source_location": "L1936",
       "weight": 1.0
     },
     {
@@ -10214,7 +10132,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L1974",
+      "source_location": "L1955",
       "weight": 1.0
     },
     {
@@ -10225,7 +10143,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L2068",
+      "source_location": "L2049",
       "weight": 1.0
     },
     {
@@ -10236,7 +10154,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L2128",
+      "source_location": "L2109",
       "weight": 1.0
     },
     {
@@ -10247,7 +10165,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L2152",
+      "source_location": "L2133",
       "weight": 1.0
     },
     {
@@ -10258,7 +10176,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L2158",
+      "source_location": "L2139",
       "weight": 1.0
     },
     {
@@ -10269,7 +10187,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L2178",
+      "source_location": "L2159",
       "weight": 1.0
     },
     {
@@ -10280,7 +10198,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L2183",
+      "source_location": "L2164",
       "weight": 1.0
     },
     {
@@ -10291,7 +10209,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L2333",
+      "source_location": "L2299",
       "weight": 1.0
     },
     {
@@ -10302,7 +10220,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L2340",
+      "source_location": "L2306",
       "weight": 1.0
     },
     {
@@ -10313,7 +10231,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L2354",
+      "source_location": "L2320",
       "weight": 1.0
     },
     {
@@ -10324,7 +10242,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L2457",
+      "source_location": "L2423",
       "weight": 1.0
     },
     {
@@ -10335,7 +10253,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/main.cpp",
-      "source_location": "L2472",
+      "source_location": "L2438",
       "weight": 1.0
     },
     {
@@ -10813,5 +10731,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "74661d1f9fd9ec3e12012d95eb873846cb322bb6"
+  "built_at_commit": "1af2dd91c7611861e6452dc8da6efc97aa6dc8a0"
 }

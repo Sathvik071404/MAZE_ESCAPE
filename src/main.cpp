@@ -282,7 +282,7 @@ struct Game {
     float elapsed = 0.0f, bestTime=0.0f, batteryCharge=100.0f;
     int batteryCount=0, routeUses=0;
     bool started = false, paused = false, won = false, mouseCaptured = false, running = true;
-    bool showSettings = false, showRunMenu=false, showPastRuns=false, soundEnabled = true;
+    bool showSettings = false, showPastRuns=false, soundEnabled = true;
     int pastRunsPage=0;
     float bobPhase = 0.0f, movementBob = 0.0f, mouseSensitivity=1.0f;
     float flickerTimer=0.0f, nextFlicker=18.0f, weatherTime=0.0f, cloudCoverage=0.05f;
@@ -1103,7 +1103,6 @@ void restart(Game& game) {
     game.x=game.z=game.pitch=game.elapsed=0.0f;
     game.yaw=ExitAngle;
     game.started=true;
-    game.showRunMenu=false;
     game.won=game.paused=false;
     game.routeVisible=game.routeCooldown=0.0f;
     game.stepDistance=0.0f;
@@ -1116,7 +1115,6 @@ void restart(Game& game) {
 void beginGame(Game& game) {
     game.started=true;
     game.paused=false;
-    game.showRunMenu=false;
     game.movementBob=0.0f;
     resetRunState(game);
     playSound(game,L"menu.wav");
@@ -1129,7 +1127,6 @@ void returnToMenu(Game& game) {
     game.x=game.z=game.pitch=game.elapsed=0.0f;
     game.yaw=ExitAngle;
     game.started=game.paused=game.won=false;
-    game.showRunMenu=false;
     game.routeVisible=game.routeCooldown=0.0f;
     game.stepDistance=0.0f;
     game.bobPhase=game.movementBob=0.0f;
@@ -1267,11 +1264,6 @@ void useBattery(Game& game) {
     playSound(game,L"battery_recharge.wav");
 }
 
-void openRunMenu(Game& game) {
-    game.showRunMenu=true;
-    captureMouse(game,false);
-}
-
 void saveSettings(const Game& game) {
     auto write=[&](const wchar_t* section,const wchar_t* key,int value) {
         const std::wstring text=std::to_wstring(value);
@@ -1361,10 +1353,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
     case WM_LBUTTONDOWN:
         if (game->showSettings) return 0;
         if (game->showPastRuns) return 0;
-        if (!game->started) {
-            if (game->showRunMenu) beginGame(*game);
-            else openRunMenu(*game);
-        }
+        if (!game->started) beginGame(*game);
         else if (game->paused && !game->won) { game->paused=false; captureMouse(*game,true); playSound(*game,L"menu.wav"); }
         return 0;
     case WM_INPUT:
@@ -1397,14 +1386,6 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                     const int direction=wParam==VK_RIGHT?1:-1;
                     game->pastRunsPage=(game->pastRunsPage+direction+pageCount)%pageCount;
                 } else if (wParam=='S') openSettings(*game);
-            } else if (game->showRunMenu) {
-                if (wParam==VK_ESCAPE) game->showRunMenu=false;
-                else if (wParam==VK_RETURN || wParam==VK_SPACE) beginGame(*game);
-                else if (wParam==VK_LEFT || wParam==VK_RIGHT) {
-                    const int direction=wParam==VK_RIGHT?1:-1;
-                    game->difficultyIndex=(game->difficultyIndex+direction+3)%3;
-                    saveSettings(*game);
-                } else if (wParam=='S') openSettings(*game);
             } else if (wParam==VK_ESCAPE) {
                 if (!game->started) DestroyWindow(window);
                 else if (game->paused || game->won) returnToMenu(*game);
@@ -1416,7 +1397,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 game->pastRunsPage=0;
                 captureMouse(*game,false);
             } else if (!game->started && (wParam==VK_RETURN || wParam==VK_SPACE)) {
-                openRunMenu(*game);
+                beginGame(*game);
             } else if (wParam=='R' && game->won) restart(*game);
             else if (wParam=='R') useBattery(*game);
             else if (wParam=='F') toggleFlashlight(*game);
@@ -2245,38 +2226,23 @@ void renderUi(Game& game) {
         centeredText(vertices,w,h,pageText,cy+163,1.2f,green);
         centeredText(vertices,w,h,"LEFT RIGHT CHANGE PAGE",cy+190,1.05f,cyan);
         centeredText(vertices,w,h,"ESC BACK   S SETTINGS",cy+215,1.05f,white);
-    } else if (!game.started && game.showRunMenu) {
-        const float cx=w*0.5f, cy=h*0.5f;
-        uiRect(vertices,w,h,0,0,static_cast<float>(w),static_cast<float>(h),{0.002f,0.006f,0.010f,0.78f});
-        uiRect(vertices,w,h,cx-300,cy-240,600,480,{0.012f,0.025f,0.030f,0.97f});
-        uiRect(vertices,w,h,cx-300,cy-240,600,5,{0.25f,0.88f,0.67f,1.0f});
-        centeredText(vertices,w,h,"RUN MENU",cy-190,3.5f,green);
-        centeredText(vertices,w,h,"SEED "+std::to_string(game.mazeSeed),cy-112,1.35f,cyan);
-        const char* difficultyNames[]={"EASY","NORMAL","HARD"};
-        centeredText(vertices,w,h,std::string("DIFFICULTY ")+difficultyNames[game.difficultyIndex],cy-76,1.6f,white);
-        centeredText(vertices,w,h,"LEFT RIGHT CHANGE",cy-50,1.15f,cyan);
-        if (game.bestTime>0.0f) {
-            char record[32]{}; formatTime(game.bestTime,record);
-            centeredText(vertices,w,h,std::string("BEST ")+record,cy-10,1.25f,green);
-            centeredText(vertices,w,h,"BEST SEED "+std::to_string(game.bestSeed),cy+16,1.05f,green);
-        } else centeredText(vertices,w,h,"NO RECORD YET",cy+2,1.2f,white);
-        centeredText(vertices,w,h,"REPLAY: MAZEESCAPE EXE --SEED N",cy+47,0.95f,white);
-        uiRect(vertices,w,h,cx-190,cy+77,380,53,{0.08f,0.32f,0.28f,1.0f});
-        centeredText(vertices,w,h,"ENTER OR CLICK TO START",cy+95,1.25f,green);
-        centeredText(vertices,w,h,"S SETTINGS",cy+153,1.15f,cyan);
-        centeredText(vertices,w,h,"ESC BACK",cy+180,1.0f,white);
     } else if (!game.started) {
         const float cx=w*0.5f, cy=h*0.5f;
         uiRect(vertices,w,h,0,0,static_cast<float>(w),static_cast<float>(h),{0.002f,0.006f,0.010f,0.78f});
         uiRect(vertices,w,h,cx-270,cy-170,540,340,{0.012f,0.025f,0.030f,0.97f});
         uiRect(vertices,w,h,cx-270,cy-170,540,5,{0.25f,0.88f,0.67f,1.0f});
-        centeredText(vertices,w,h,"MAZE ESCAPE",cy-112,3.5f,green);
-        centeredText(vertices,w,h,"FIND THE EXIT",cy-50,1.8f,white);
-        uiRect(vertices,w,h,cx-190,cy-7,380,52,{0.08f,0.32f,0.28f,1.0f});
-        centeredText(vertices,w,h,"ENTER OR CLICK TO PLAY",cy+11,1.3f,green);
-        centeredText(vertices,w,h,"P PAST RUNS",cy+68,1.15f,cyan);
-        centeredText(vertices,w,h,"S SETTINGS",cy+98,1.15f,cyan);
-        centeredText(vertices,w,h,"ESC TO CLOSE",cy+128,1.0f,cyan);
+        centeredText(vertices,w,h,"MAZE ESCAPE",cy-125,3.5f,green);
+        centeredText(vertices,w,h,"FIND THE EXIT",cy-77,1.8f,white);
+        if (game.bestTime>0.0f) {
+            char record[32]{}; formatTime(game.bestTime,record);
+            centeredText(vertices,w,h,std::string("BEST ")+record,cy-48,1.0f,green);
+        } else centeredText(vertices,w,h,"NO RECORD YET",cy-48,1.0f,white);
+        centeredText(vertices,w,h,"SEED "+std::to_string(game.mazeSeed),cy-27,0.95f,cyan);
+        uiRect(vertices,w,h,cx-190,cy-5,380,52,{0.08f,0.32f,0.28f,1.0f});
+        centeredText(vertices,w,h,"ENTER OR CLICK TO PLAY",cy+13,1.3f,green);
+        centeredText(vertices,w,h,"P PAST RUNS",cy+72,1.15f,cyan);
+        centeredText(vertices,w,h,"S SETTINGS",cy+102,1.15f,cyan);
+        centeredText(vertices,w,h,"ESC TO CLOSE",cy+132,1.0f,cyan);
     } else if (game.won) {
         uiRect(vertices,w,h,w*0.5f-310,h*0.5f-152,620,304,{0.004f,0.012f,0.018f,0.92f});
         centeredText(vertices,w,h,"YOU ESCAPED!",h*0.5f-126,3.6f,green);
