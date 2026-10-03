@@ -166,6 +166,7 @@ struct SkyVertex { float x, y, z, u, v; };
 struct UiVertex { float x, y, r, g, b, a; };
 struct Vec3 { float x, y, z; };
 struct BatteryPickup { float x=0.0f, z=0.0f; bool collected=false; };
+struct PastRun { std::string timestamp; float elapsed=0.0f; int routeUses=0; uint32_t seed=0; };
 struct ModelPart { GLsizei first = 0, count = 0; GLuint texture = 0; std::string material; };
 struct ModelObject { GLuint vao = 0, vbo = 0; std::vector<ModelPart> parts; bool loaded = false; };
 struct WallArc {
@@ -264,11 +265,13 @@ struct Game {
     std::vector<WallArc> wallArcs;
     std::vector<RadialWall> radialWalls;
     std::vector<BatteryPickup> batteryPickups;
+    std::vector<PastRun> pastRuns;
     float mazePhaseA = 0.0f, mazePhaseB = 0.0f;
     uint32_t mazeSeed=0, runSeed=0, requestedSeed=0, completedSeed=0, bestSeed=0, runtimeRandom=1;
     bool hasRequestedSeed=false, newRecord=false, flashlightOn=true, headBobEnabled=true;
     std::filesystem::path executableDirectory;
     std::filesystem::path settingsPath;
+    std::filesystem::path pastRunsPath;
     GLsizei worldVertexCount = 0;
     GLsizei skyVertexCount = 0;
     GLsizei routeVertexCount = 0;
@@ -279,7 +282,8 @@ struct Game {
     float elapsed = 0.0f, bestTime=0.0f, batteryCharge=100.0f;
     int batteryCount=0, routeUses=0;
     bool started = false, paused = false, won = false, mouseCaptured = false, running = true;
-    bool showSettings = false, showRunMenu=false, soundEnabled = true;
+    bool showSettings = false, showRunMenu=false, showPastRuns=false, soundEnabled = true;
+    int pastRunsPage=0;
     float bobPhase = 0.0f, movementBob = 0.0f, mouseSensitivity=1.0f;
     float flickerTimer=0.0f, nextFlicker=18.0f, weatherTime=0.0f, cloudCoverage=0.05f;
     int settingsIndex = 0, resolutionIndex = 1, difficultyIndex=1;
@@ -890,6 +894,7 @@ bool loadMap(Game& game) {
     GetModuleFileNameW(nullptr,path,MAX_PATH);
     game.executableDirectory=std::filesystem::path(path).parent_path();
     game.settingsPath=game.executableDirectory/L"settings.ini";
+    game.pastRunsPath=game.executableDirectory/L"past_runs.csv";
     game.resolutionIndex=std::clamp(static_cast<int>(GetPrivateProfileIntW(L"Video",L"Resolution",1,game.settingsPath.c_str())),0,3);
     game.brightness=std::clamp(GetPrivateProfileIntW(L"Video",L"Brightness",100,game.settingsPath.c_str())/100.0f,0.5f,1.5f);
     game.contrast=std::clamp(GetPrivateProfileIntW(L"Video",L"Contrast",100,game.settingsPath.c_str())/100.0f,0.5f,1.5f);
@@ -997,6 +1002,36 @@ void saveRunRecord(Game& game) {
     WritePrivateProfileStringW(L"Records",L"BestTimeMs",time.c_str(),game.settingsPath.c_str());
     WritePrivateProfileStringW(L"Records",L"BestSeed",seed.c_str(),game.settingsPath.c_str());
     WritePrivateProfileStringW(nullptr,nullptr,nullptr,game.settingsPath.c_str());
+}
+
+void loadPastRuns(Game& game) {
+    std::ifstream file(game.pastRunsPath);
+    std::string line;
+    while (std::getline(file,line)) {
+        std::istringstream row(line);
+        std::string timestamp,elapsedText,routeText,seedText;
+        if (!std::getline(row,timestamp,',') || !std::getline(row,elapsedText,',') ||
+            !std::getline(row,routeText,',') || !std::getline(row,seedText)) continue;
+        try {
+            const unsigned long seed=std::stoul(seedText);
+            if (seed>std::numeric_limits<uint32_t>::max()) continue;
+            game.pastRuns.push_back({timestamp,std::stof(elapsedText),std::stoi(routeText),static_cast<uint32_t>(seed)});
+        } catch (const std::exception&) {
+            continue;
+        }
+    }
+}
+
+void recordPastRun(Game& game) {
+    SYSTEMTIME localTime{};
+    GetLocalTime(&localTime);
+    char timestamp[32]{};
+    wsprintfA(timestamp,"%04u %02u %02u %02u:%02u:%02u",localTime.wYear,localTime.wMonth,
+              localTime.wDay,localTime.wHour,localTime.wMinute,localTime.wSecond);
+    PastRun run{timestamp,game.elapsed,game.routeUses,game.completedSeed};
+    std::ofstream file(game.pastRunsPath,std::ios::app);
+    if (file) file<<run.timestamp<<','<<run.elapsed<<','<<run.routeUses<<','<<run.seed<<'\n';
+    game.pastRuns.push_back(std::move(run));
 }
 
 void collectBatteries(Game& game) {
@@ -1325,6 +1360,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         break;
     case WM_LBUTTONDOWN:
         if (game->showSettings) return 0;
+        if (game->showPastRuns) return 0;
         if (!game->started) {
             if (game->showRunMenu) beginGame(*game);
             else openRunMenu(*game);
@@ -1354,6 +1390,13 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                     else if (game->settingsIndex==6) { game->headBobEnabled=!game->headBobEnabled; saveSettings(*game); }
                     else if (game->settingsIndex==7) closeSettings(*game);
                 }
+            } else if (game->showPastRuns) {
+                if (wParam==VK_ESCAPE) game->showPastRuns=false;
+                else if (wParam==VK_LEFT || wParam==VK_RIGHT) {
+                    const int pageCount=std::max(1,static_cast<int>((game->pastRuns.size()+9)/10));
+                    const int direction=wParam==VK_RIGHT?1:-1;
+                    game->pastRunsPage=(game->pastRunsPage+direction+pageCount)%pageCount;
+                } else if (wParam=='S') openSettings(*game);
             } else if (game->showRunMenu) {
                 if (wParam==VK_ESCAPE) game->showRunMenu=false;
                 else if (wParam==VK_RETURN || wParam==VK_SPACE) beginGame(*game);
@@ -1368,6 +1411,10 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 else { game->paused=true; captureMouse(*game,false); playSound(*game,L"menu.wav"); }
             } else if (wParam=='S' && (!game->started || game->paused)) {
                 openSettings(*game);
+            } else if (wParam=='P' && !game->started) {
+                game->showPastRuns=true;
+                game->pastRunsPage=0;
+                captureMouse(*game,false);
             } else if (!game->started && (wParam==VK_RETURN || wParam==VK_SPACE)) {
                 openRunMenu(*game);
             } else if (wParam=='R' && game->won) restart(*game);
@@ -2065,6 +2112,7 @@ void movePlayer(Game& game, float dt) {
     if (radius>=exitRadius+0.10f && std::abs(delta)*exitRadius<=DoorHalfWidth+0.45f) {
         game.won=true;
         game.completedSeed=game.runSeed;
+        recordPastRun(game);
         if (game.bestTime<=0.0f || game.elapsed<game.bestTime) {
             game.bestTime=game.elapsed;
             game.bestSeed=game.completedSeed;
@@ -2166,6 +2214,37 @@ void renderUi(Game& game) {
         centeredText(vertices,w,h,"UP DOWN SELECT",cy+155,1.25f,white);
         centeredText(vertices,w,h,"LEFT RIGHT ADJUST",cy+180,1.25f,cyan);
         centeredText(vertices,w,h,"ESC BACK",cy+207,1.1f,white);
+    } else if (!game.started && game.showPastRuns) {
+        const float cx=w*0.5f, cy=h*0.5f;
+        const int pageCount=std::max(1,static_cast<int>((game.pastRuns.size()+9)/10));
+        game.pastRunsPage=std::clamp(game.pastRunsPage,0,pageCount-1);
+        uiRect(vertices,w,h,0,0,static_cast<float>(w),static_cast<float>(h),{0.002f,0.006f,0.010f,0.82f});
+        uiRect(vertices,w,h,cx-470,cy-270,940,540,{0.012f,0.025f,0.030f,0.98f});
+        uiRect(vertices,w,h,cx-470,cy-270,940,5,{0.25f,0.88f,0.67f,1.0f});
+        centeredText(vertices,w,h,"PAST RUNS",cy-235,3.2f,green);
+        centeredText(vertices,w,h,"COMPLETION TIME   RUN TIME   ROUTE FINDS   MAZE SEED",cy-193,1.15f,cyan);
+        if (game.pastRuns.empty()) {
+            centeredText(vertices,w,h,"NO COMPLETED RUNS YET",cy-70,1.7f,white);
+        } else {
+            for (int i=0;i<10;++i) {
+                const size_t reverseIndex=static_cast<size_t>(game.pastRunsPage*10+i);
+                if (reverseIndex>=game.pastRuns.size()) break;
+                const PastRun& run=game.pastRuns[game.pastRuns.size()-1-reverseIndex];
+                char runTime[32]{}, routeCount[16]{};
+                formatTime(run.elapsed,runTime);
+                wsprintfA(routeCount,"%02d",run.routeUses);
+                const std::string row=run.timestamp+"  TIME "+runTime+"  ROUTE "+routeCount+
+                                      "  SEED "+std::to_string(run.seed);
+                uiRect(vertices,w,h,cx-430,cy-168+i*29.0f,860,25,
+                       {0.025f,0.060f,0.064f,(i%2==0)?0.70f:0.38f});
+                uiText(vertices,w,h,row,cx-418,cy-162+i*29.0f,1.05f,white);
+            }
+        }
+        char pageText[40]{};
+        wsprintfA(pageText,"PAGE %02d OF %02d",game.pastRunsPage+1,pageCount);
+        centeredText(vertices,w,h,pageText,cy+163,1.2f,green);
+        centeredText(vertices,w,h,"LEFT RIGHT CHANGE PAGE",cy+190,1.05f,cyan);
+        centeredText(vertices,w,h,"ESC BACK   S SETTINGS",cy+215,1.05f,white);
     } else if (!game.started && game.showRunMenu) {
         const float cx=w*0.5f, cy=h*0.5f;
         uiRect(vertices,w,h,0,0,static_cast<float>(w),static_cast<float>(h),{0.002f,0.006f,0.010f,0.78f});
@@ -2195,8 +2274,9 @@ void renderUi(Game& game) {
         centeredText(vertices,w,h,"FIND THE EXIT",cy-50,1.8f,white);
         uiRect(vertices,w,h,cx-190,cy-7,380,52,{0.08f,0.32f,0.28f,1.0f});
         centeredText(vertices,w,h,"ENTER OR CLICK TO PLAY",cy+11,1.3f,green);
-        centeredText(vertices,w,h,"S SETTINGS",cy+68,1.15f,cyan);
-        centeredText(vertices,w,h,"ESC TO CLOSE",cy+98,1.0f,cyan);
+        centeredText(vertices,w,h,"P PAST RUNS",cy+68,1.15f,cyan);
+        centeredText(vertices,w,h,"S SETTINGS",cy+98,1.15f,cyan);
+        centeredText(vertices,w,h,"ESC TO CLOSE",cy+128,1.0f,cyan);
     } else if (game.won) {
         uiRect(vertices,w,h,w*0.5f-310,h*0.5f-152,620,304,{0.004f,0.012f,0.018f,0.92f});
         centeredText(vertices,w,h,"YOU ESCAPED!",h*0.5f-126,3.6f,green);
@@ -2403,6 +2483,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
         Gdiplus::GdiplusShutdown(gdiplusToken);
         return 1;
     }
+    loadPastRuns(game);
     if (!createWindowAndContext(game,instance)) {
         MessageBoxW(nullptr,L"Could not create an OpenGL 3.3 window/context.",L"Maze Escape",MB_OK|MB_ICONERROR);
         Gdiplus::GdiplusShutdown(gdiplusToken);

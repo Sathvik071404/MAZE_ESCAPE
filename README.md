@@ -4,7 +4,7 @@ A first-person OpenGL maze game built directly on Win32/WGL. Each new run genera
 
 ## Code graph
 
-The refreshed project graph maps 329 code and documentation symbols and 564 extracted relationships across 13 communities. Explore the [interactive graph](graphify-out/graph.html) or inspect its [graph data](graphify-out/graph.json).
+The refreshed project graph maps 340 code and documentation symbols and 581 extracted relationships across 13 communities. Explore the [interactive graph](graphify-out/graph.html) or inspect its [graph data](graphify-out/graph.json).
 
 ![Maze Escape code graph](graphify-out/graph.svg)
 
@@ -26,6 +26,7 @@ Download and extract the repository ZIP, then double-click `MazeEscape.exe` in t
 ## Controls
 
 - **Enter / Space**: open the Run Menu from the title; start from the Run Menu
+- **P**: open Past Runs from the title; use **Left / Right** to page through completed runs
 - **W / S**: move forward/back
 - **A / D**: strafe
 - **Shift**: sprint
@@ -45,6 +46,8 @@ The title screen leads to a separate Run Menu for the maze seed, difficulty, bes
 The O skill runs A* on the walkable grid and briefly draws the shortest route to the exit. Each completed run reports how many times the route was revealed. The game maze is a spanning tree, so there is only one corridor route to solve; A* efficiently finds that route from the player's current position. The flashlight casts filtered real-time shadows. Its beam may briefly stutter, with an electrical sound cue. The stone walls and forest floor use bundled 2K PBR maps for color, normal detail, roughness, and ambient occlusion, with scattered moss on the stone. The outer rings vary in shape on each map while the starting chamber remains circular. Selected wall ends have chipped silhouettes and small fallen stones; they are decorative and stay out of the route. A few narrow eye-level gaps let you glimpse adjacent corridors; they remain solid for movement. Corridors stay wide enough for comfortable movement. The timer stops when you escape. Footsteps, switch and pickup sounds, and a quiet stereo exit cue add spatial feedback. The exit cue fades with distance and is silent beyond 7 meters. The night sky has procedural stars, a moving moon, and drifting clouds. Clear sky brings strong blue moonlight; dense cloud cover dims the maze back to darkness.
 
 The Run Menu shows the current maze seed and your best time. The best time and its seed are saved locally in `settings.ini`. To replay a particular generated maze, run `MazeEscape.exe --seed 123456`; replace the number with the seed shown in the Run Menu or escape screen. Each new run still generates its own map unless a seed is supplied at launch.
+
+Past Runs stores every completed run in `past_runs.csv` beside the executable. The in-game history lists the local completion timestamp, run time, route reveals used, and maze seed, newest first. The file is created automatically after the first escape and stays local to that copy of the game.
 
 ## Textures
 
