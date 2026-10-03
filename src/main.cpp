@@ -155,20 +155,18 @@ struct Game {
     float stepDistance = 0.0f;
     float x = 0.0f, z = 0.0f;
     float yaw = ExitAngle, pitch = 0.0f;
-    float cameraYaw = ExitAngle, cameraPitch = -0.18f;
     float elapsed = 0.0f;
     bool started = false, paused = false, won = false, mouseCaptured = false, running = true;
-    bool showSettings = false, settingsFromPause = false, soundEnabled = true, thirdPerson = false;
-    float walkPhase = 0.0f, walking = 0.0f;
+    bool showSettings = false, soundEnabled = true;
+    float bobPhase = 0.0f, movementBob = 0.0f;
     int settingsIndex = 0, resolutionIndex = 1;
     float brightness = 1.0f, contrast = 1.0f;
     bool alternateFootstep = false;
     GLuint worldProgram = 0, skyProgram = 0, uiProgram = 0;
     GLuint worldVao = 0, worldVbo = 0, routeVao = 0, routeVbo = 0;
     GLuint skyVao = 0, skyVbo = 0, uiVao = 0, uiVbo = 0;
-    ModelObject character, flashlight;
-    std::vector<ModelObject> characterWalk;
-    std::unordered_map<std::wstring,GLuint> modelTextures;
+    ModelObject flashlight;
+    std::unordered_map<std::wstring,GLuint> flashlightTextures;
     GLuint grassTexture = 0, stoneTexture = 0, skyTexture = 0;
     GLint viewLoc = -1, projectionLoc = -1, modelLoc = -1, eyeLoc = -1, flashLoc = -1, lightPosLoc = -1;
     GLint brightnessLoc = -1, contrastLoc = -1;
@@ -571,7 +569,6 @@ bool loadMap(Game& game) {
     game.brightness=std::clamp(GetPrivateProfileIntW(L"Video",L"Brightness",100,game.settingsPath.c_str())/100.0f,0.5f,1.5f);
     game.contrast=std::clamp(GetPrivateProfileIntW(L"Video",L"Contrast",100,game.settingsPath.c_str())/100.0f,0.5f,1.5f);
     game.soundEnabled=GetPrivateProfileIntW(L"Audio",L"Sound",1,game.settingsPath.c_str())!=0;
-    game.thirdPerson=GetPrivateProfileIntW(L"Camera",L"ThirdPerson",0,game.settingsPath.c_str())!=0;
     constexpr int widths[]={960,1280,1600}, heights[]={600,800,900};
     game.width=game.resolutionIndex==3?GetSystemMetrics(SM_CXSCREEN):widths[game.resolutionIndex];
     game.height=game.resolutionIndex==3?GetSystemMetrics(SM_CYSCREEN):heights[game.resolutionIndex];
@@ -638,28 +635,15 @@ void captureMouse(Game& game, bool capture) {
     }
 }
 
-void setCameraMode(Game& game, bool thirdPerson) {
-    if (game.thirdPerson==thirdPerson) return;
-    if (thirdPerson) {
-        game.cameraYaw=game.yaw;
-        game.cameraPitch=std::clamp(game.pitch-0.18f,-0.70f,0.25f);
-    } else {
-        game.yaw=game.cameraYaw;
-        game.pitch=std::clamp(game.cameraPitch,-1.35f,1.35f);
-    }
-    game.thirdPerson=thirdPerson;
-}
-
 void restart(Game& game) {
     regenerateMaze(game);
     game.x=game.z=game.pitch=game.elapsed=0.0f;
     game.yaw=ExitAngle;
-    game.cameraYaw=game.yaw; game.cameraPitch=-0.18f;
     game.started=true;
     game.won=game.paused=false;
     game.routeVisible=game.routeCooldown=0.0f;
     game.stepDistance=0.0f;
-    game.walkPhase=game.walking=0.0f;
+    game.bobPhase=game.movementBob=0.0f;
     captureMouse(game,true);
     SetFocus(game.window);
 }
@@ -667,7 +651,7 @@ void restart(Game& game) {
 void beginGame(Game& game) {
     game.started=true;
     game.paused=false;
-    game.walking=0.0f;
+    game.movementBob=0.0f;
     playSound(game,L"menu.wav");
     captureMouse(game,true);
     SetFocus(game.window);
@@ -677,11 +661,10 @@ void returnToMenu(Game& game) {
     regenerateMaze(game);
     game.x=game.z=game.pitch=game.elapsed=0.0f;
     game.yaw=ExitAngle;
-    game.cameraYaw=game.yaw; game.cameraPitch=-0.18f;
     game.started=game.paused=game.won=false;
     game.routeVisible=game.routeCooldown=0.0f;
     game.stepDistance=0.0f;
-    game.walkPhase=game.walking=0.0f;
+    game.bobPhase=game.movementBob=0.0f;
     captureMouse(game,false);
     playSound(game,L"menu.wav");
 }
@@ -803,7 +786,6 @@ void saveSettings(const Game& game) {
     write(L"Video",L"Brightness",static_cast<int>(std::lround(game.brightness*100.0f)));
     write(L"Video",L"Contrast",static_cast<int>(std::lround(game.contrast*100.0f)));
     write(L"Audio",L"Sound",game.soundEnabled?1:0);
-    write(L"Camera",L"ThirdPerson",game.thirdPerson?1:0);
     WritePrivateProfileStringW(nullptr,nullptr,nullptr,game.settingsPath.c_str());
 }
 
@@ -825,7 +807,6 @@ void setResolution(Game& game) {
 }
 
 void openSettings(Game& game) {
-    game.settingsFromPause=game.started && game.paused;
     game.showSettings=true;
     game.settingsIndex=0;
     captureMouse(game,false);
@@ -851,8 +832,7 @@ void adjustSetting(Game& game,int direction) {
         game.contrast=std::round(game.contrast*10.0f)/10.0f;
         break;
     case 3: game.soundEnabled=direction>0; break;
-    case 4: setCameraMode(game,direction>0); break;
-    case 5: closeSettings(game); return;
+    case 4: closeSettings(game); return;
     }
     saveSettings(game);
 }
@@ -884,15 +864,8 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             RAWINPUT input{};
             UINT size=sizeof(input);
             if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam),RID_INPUT,&input,&size,sizeof(RAWINPUTHEADER))==size && input.header.dwType==RIM_TYPEMOUSE) {
-                if (game->thirdPerson) {
-                    game->cameraYaw += input.data.mouse.lLastX*0.0025f;
-                    game->cameraPitch=std::clamp(game->cameraPitch-input.data.mouse.lLastY*0.0025f,-0.70f,0.25f);
-                } else {
-                    game->yaw += input.data.mouse.lLastX*0.0025f;
-                    game->pitch=std::clamp(game->pitch-input.data.mouse.lLastY*0.0025f,-1.35f,1.35f);
-                    game->cameraYaw=game->yaw;
-                    game->cameraPitch=game->pitch-0.18f;
-                }
+                game->yaw += input.data.mouse.lLastX*0.0025f;
+                game->pitch=std::clamp(game->pitch-input.data.mouse.lLastY*0.0025f,-1.35f,1.35f);
             }
         }
         return 0;
@@ -900,14 +873,13 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         if (!(lParam & (1LL<<30))) {
             if (game->showSettings) {
                 if (wParam==VK_ESCAPE) closeSettings(*game);
-                else if (wParam==VK_UP) game->settingsIndex=(game->settingsIndex+5)%6;
-                else if (wParam==VK_DOWN) game->settingsIndex=(game->settingsIndex+1)%6;
+                else if (wParam==VK_UP) game->settingsIndex=(game->settingsIndex+4)%5;
+                else if (wParam==VK_DOWN) game->settingsIndex=(game->settingsIndex+1)%5;
                 else if (wParam==VK_LEFT) adjustSetting(*game,-1);
                 else if (wParam==VK_RIGHT) adjustSetting(*game,1);
                 else if (wParam==VK_RETURN || wParam==VK_SPACE) {
                     if (game->settingsIndex==3) { game->soundEnabled=!game->soundEnabled; saveSettings(*game); }
-                    else if (game->settingsIndex==4) { setCameraMode(*game,!game->thirdPerson); saveSettings(*game); }
-                    else if (game->settingsIndex==5) closeSettings(*game);
+                    else if (game->settingsIndex==4) closeSettings(*game);
                 }
             } else if (wParam==VK_ESCAPE) {
                 if (!game->started) DestroyWindow(window);
@@ -918,10 +890,6 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             } else if (!game->started && (wParam==VK_RETURN || wParam==VK_SPACE)) {
                 beginGame(*game);
             } else if (wParam=='R' && game->won) restart(*game);
-            else if (wParam==VK_TAB && game->started && !game->paused && !game->won) {
-                setCameraMode(*game,!game->thirdPerson);
-                saveSettings(*game);
-            }
             else if (wParam=='O') activateRoute(*game);
         }
         return 0;
@@ -1036,7 +1004,7 @@ uniform float uBrightness;
 uniform float uContrast;
 uniform sampler2D uGrass;
 uniform sampler2D uStone;
-uniform sampler2D uCharacter;
+uniform sampler2D uPropTexture;
 out vec4 outColor;
 void main() {
     vec3 toPoint = vWorld - uLightPos;
@@ -1049,7 +1017,7 @@ void main() {
     vec3 albedo = vColor;
     float alpha=1.0;
     if (vMaterial > 3.5) {
-        vec4 texel=texture(uCharacter,vUv);
+        vec4 texel=texture(uPropTexture,vUv);
         if (texel.a<0.18) discard;
         albedo*=pow(max(texel.rgb,vec3(0.0)),vec3(0.58));
         alpha=texel.a;
@@ -1205,14 +1173,6 @@ GLuint loadPngTexture(const std::filesystem::path& path) {
     return texture;
 }
 
-std::array<float,3> modelTint(const std::string& name) {
-    if (name.find("Face")!=std::string::npos) return {0.91f,0.78f,0.69f};
-    if (name.find("Hair")!=std::string::npos || name.find("Bangs")!=std::string::npos) return {0.92f,0.92f,1.0f};
-    if (name.find("Eye")!=std::string::npos) return {0.85f,0.9f,1.0f};
-    if (name.find("Down")!=std::string::npos || name.find("Up")!=std::string::npos) return {0.94f,0.91f,0.87f};
-    return {0.9f,0.94f,1.0f};
-}
-
 bool loadObjModel(Game& game,const std::filesystem::path& path,ModelObject& output) {
     struct Index { int position=-1, uv=-1, normal=-1; };
     struct Group { std::vector<Vertex> vertices; };
@@ -1263,7 +1223,7 @@ bool loadObjModel(Game& game,const std::filesystem::path& path,ModelObject& outp
                 const Index tri[3]={face[0],face[i],face[i+1]};
                 const Vec3 a=positions[tri[0].position], b=positions[tri[1].position], c=positions[tri[2].position];
                 const Vec3 fallback=normalize(cross({b.x-a.x,b.y-a.y,b.z-a.z},{c.x-a.x,c.y-a.y,c.z-a.z}));
-                const auto tint=modelTint(material);
+                constexpr std::array<float,3> tint{0.9f,0.94f,1.0f};
                 auto& vertices=groups[material].vertices;
                 for (const Index& idx:tri) {
                     const Vec3 p=positions[idx.position];
@@ -1302,11 +1262,11 @@ bool loadObjModel(Game& game,const std::filesystem::path& path,ModelObject& outp
         const auto texturePath=materialTextures.find(entry.first);
         if (texturePath!=materialTextures.end() && std::filesystem::exists(texturePath->second)) {
             const auto key=texturePath->second.wstring();
-            const auto cached=game.modelTextures.find(key);
-            if (cached!=game.modelTextures.end()) part.texture=cached->second;
+            const auto cached=game.flashlightTextures.find(key);
+            if (cached!=game.flashlightTextures.end()) part.texture=cached->second;
             else {
                 part.texture=loadPngTexture(texturePath->second);
-                game.modelTextures.emplace(key,part.texture);
+                game.flashlightTextures.emplace(key,part.texture);
             }
         }
         vertices.insert(vertices.end(),entry.second.vertices.begin(),entry.second.vertices.end());
@@ -1394,17 +1354,12 @@ bool initializeRenderer(Game& game) {
     glUseProgram(game.worldProgram);
     glUniform1i(glGetUniformLocation(game.worldProgram,"uGrass"),0);
     glUniform1i(glGetUniformLocation(game.worldProgram,"uStone"),1);
-    glUniform1i(glGetUniformLocation(game.worldProgram,"uCharacter"),3);
+    glUniform1i(glGetUniformLocation(game.worldProgram,"uPropTexture"),3);
     glUseProgram(game.skyProgram);
     glUniform1i(game.skySamplerLoc,2);
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     const auto modelDir=std::filesystem::path(executable).parent_path()/L"assets"/L"models";
-    const auto characterDir=modelDir/L"chisa";
-    loadObjModel(game,characterDir/L"Chisa.obj",game.character);
-    game.characterWalk.resize(8);
-    for (int i=0;i<static_cast<int>(game.characterWalk.size());++i)
-        loadObjModel(game,characterDir/(L"ChisaWalk0"+std::to_wstring(i)+L".obj"),game.characterWalk[i]);
     loadObjModel(game,modelDir/L"flashlight"/L"Flashlight.obj",game.flashlight);
     return true;
 }
@@ -1417,12 +1372,9 @@ void movePlayer(Game& game, float dt) {
     const float side=(GetAsyncKeyState('D')<0?1.0f:0.0f)-(GetAsyncKeyState('A')<0?1.0f:0.0f);
     if (forward==0.0f && side==0.0f) {
         game.stepDistance=0.0f;
-        game.walking=std::max(0.0f,game.walking-dt*7.0f);
+        game.movementBob=std::max(0.0f,game.movementBob-dt*7.0f);
         game.elapsed+=dt;
         return;
-    }
-    if (game.thirdPerson) {
-        game.cameraYaw=game.yaw;
     }
     const float length=std::sqrt(forward*forward+side*side);
     const float f=forward/length, s=side/length;
@@ -1439,8 +1391,8 @@ void movePlayer(Game& game, float dt) {
     }
     const float moved=std::hypot(game.x-oldX,game.z-oldZ);
     game.stepDistance+=moved;
-    game.walking=std::clamp(game.walking+(moved>0.0001f?dt*8.0f:-dt*7.0f),0.0f,1.0f);
-    if (moved>0.0001f) game.walkPhase=std::fmod(game.walkPhase+dt*(sprinting?13.0f:10.0f),2.0f*Pi);
+    game.movementBob=std::clamp(game.movementBob+(moved>0.0001f?dt*8.0f:-dt*7.0f),0.0f,1.0f);
+    if (moved>0.0001f) game.bobPhase=std::fmod(game.bobPhase+dt*(sprinting?13.0f:10.0f),2.0f*Pi);
     const float stepLength=sprinting?0.9f:0.68f;
     if (game.stepDistance>=stepLength) {
         game.stepDistance-=stepLength;
@@ -1536,7 +1488,6 @@ void renderUi(Game& game) {
             "BRIGHTNESS "+std::to_string(static_cast<int>(std::lround(game.brightness*100.0f))),
             "CONTRAST "+std::to_string(static_cast<int>(std::lround(game.contrast*100.0f))),
             std::string("SOUND ")+(game.soundEnabled?"ON":"OFF"),
-            std::string("CAMERA ")+(game.thirdPerson?"THIRD":"FIRST"),
             "BACK"
         };
         for (int i=0;i<static_cast<int>(rows.size());++i) {
@@ -1582,7 +1533,6 @@ void renderUi(Game& game) {
         uiText(vertices,w,h,"WASD MOVE",28,73,1.25f,white);
         uiText(vertices,w,h,"MOUSE LOOK",28,92,1.25f,white);
         uiText(vertices,w,h,"SHIFT SPRINT",28,109,1.25f,white);
-        uiText(vertices,w,h,"TAB CAMERA",28,128,1.25f,white);
         const float skillX=std::max(12.0f,w-174.0f), skillY=static_cast<float>(h)-68.0f;
         uiRect(vertices,w,h,skillX,skillY,162,52,{0.004f,0.010f,0.016f,0.78f});
         uiText(vertices,w,h,"ROUTE",skillX+12,skillY+8,1.15f,cyan);
@@ -1609,7 +1559,7 @@ std::array<float,16> basisTransform(Vec3 right,Vec3 up,Vec3 forward,Vec3 origin,
             origin.x,origin.y,origin.z,1.0f};
 }
 
-void drawModel(Game& game,const ModelObject& object,const std::array<float,16>& transform,bool bodyOnly=false) {
+void drawModel(Game& game,const ModelObject& object,const std::array<float,16>& transform) {
     if (!object.loaded || object.parts.empty()) return;
     glUniformMatrix4fv(game.modelLoc,1,GL_FALSE,transform.data());
     glBindVertexArray(object.vao);
@@ -1617,9 +1567,6 @@ void drawModel(Game& game,const ModelObject& object,const std::array<float,16>& 
     glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
     glActiveTexture(GL_TEXTURE3);
     for (const ModelPart& part:object.parts) {
-        if (bodyOnly && (part.material.find("Face")!=std::string::npos || part.material.find("Eye")!=std::string::npos ||
-                         part.material.find("Hair")!=std::string::npos || part.material.find("Bangs")!=std::string::npos ||
-                         part.material.find("MazeFlashlight")!=std::string::npos)) continue;
         glBindTexture(GL_TEXTURE_2D,part.texture);
         glDrawArrays(GL_TRIANGLES,part.first,part.count);
     }
@@ -1630,52 +1577,28 @@ void render(Game& game) {
     glViewport(0,0,game.width,game.height);
     glClearColor(0.004f,0.007f,0.012f,1.0f);
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-    float cameraYaw=game.thirdPerson?game.cameraYaw:game.yaw;
-    float cameraPitch=game.thirdPerson?game.cameraPitch:game.pitch;
-    const float bob=std::sin(game.walkPhase*2.0f)*0.025f*game.walking;
-    const float modelBob=std::sin(game.walkPhase*2.0f)*0.018f*game.walking;
+    const float bob=std::sin(game.bobPhase*2.0f)*0.025f*game.movementBob;
     Vec3 eye{game.x,1.38f+bob,game.z};
-    if (game.thirdPerson && game.started) {
-        const float cp=std::cos(cameraPitch);
-        const Vec3 target{game.x,1.05f+modelBob,game.z};
-        float distance=0.0f;
-        for (float candidate=0.025f;candidate<=2.25f;candidate+=0.025f) {
-            const float horizontal=cp*candidate;
-            if (!canStand(game,game.x-std::cos(cameraYaw)*horizontal,game.z-std::sin(cameraYaw)*horizontal)) break;
-            distance=candidate;
-        }
-        eye={target.x-std::cos(cameraYaw)*cp*distance,
-             target.y-std::sin(cameraPitch)*distance,
-             target.z-std::sin(cameraYaw)*cp*distance};
-    }
     const float cp=std::cos(game.pitch);
     const Vec3 flash{std::cos(game.yaw)*cp,std::sin(game.pitch),std::sin(game.yaw)*cp};
     Vec3 heldRight{},heldUp{},heldForward{},heldOrigin{};
     float heldScale=0.085f;
-    const Vec3 characterRight{std::sin(game.yaw),0.0f,-std::cos(game.yaw)};
-    const Vec3 characterForward{std::cos(game.yaw),0.0f,std::sin(game.yaw)};
-    if (game.thirdPerson) {
-        heldRight=characterRight;
-        heldUp={0.0f,1.0f,0.0f};
-        heldForward=characterForward;
-        heldOrigin={game.x-heldRight.x*0.134f+heldForward.x*0.405f,1.063f+modelBob,
-                    game.z-heldRight.z*0.134f+heldForward.z*0.405f};
-    } else {
-        heldForward={std::cos(game.yaw)*cp,std::sin(game.pitch),std::sin(game.yaw)*cp};
-        heldRight=normalize(cross(heldForward,{0.0f,1.0f,0.0f}));
-        heldUp=cross(heldRight,heldForward);
-        const Vec3 hand{game.x-characterRight.x*0.134f+characterForward.x*0.236f,
-                        1.063f+modelBob,
-                        game.z-characterRight.z*0.134f+characterForward.z*0.236f};
-        heldOrigin={hand.x+heldForward.x*0.169f,hand.y+heldForward.y*0.169f,hand.z+heldForward.z*0.169f};
-    }
-    // Rotate the flashlight across the palm for a reverse grip without turning the beam away.
+    heldForward={std::cos(game.yaw)*cp,std::sin(game.pitch),std::sin(game.yaw)*cp};
+    heldRight=normalize(cross(heldForward,{0.0f,1.0f,0.0f}));
+    heldUp=cross(heldRight,heldForward);
+    const Vec3 playerRight{std::sin(game.yaw),0.0f,-std::cos(game.yaw)};
+    const Vec3 playerForward{std::cos(game.yaw),0.0f,std::sin(game.yaw)};
+    const Vec3 grip{game.x-playerRight.x*0.134f+playerForward.x*0.236f,
+                    1.063f+bob,
+                    game.z-playerRight.z*0.134f+playerForward.z*0.236f};
+    heldOrigin={grip.x+heldForward.x*0.169f,grip.y+heldForward.y*0.169f,grip.z+heldForward.z*0.169f};
+    // Keep the flashlight beam aligned with the view when rotating the prop in the grip.
     heldRight={-heldRight.x,-heldRight.y,-heldRight.z};
     heldUp={-heldUp.x,-heldUp.y,-heldUp.z};
     const Vec3 lightPos{heldOrigin.x+heldForward.x*heldScale*2.871889f,
                         heldOrigin.y+heldForward.y*heldScale*2.871889f,
                         heldOrigin.z+heldForward.z*heldScale*2.871889f};
-    const auto view=viewMatrix(eye,cameraYaw,cameraPitch);
+    const auto view=viewMatrix(eye,game.yaw,game.pitch);
     const auto projection=perspective(70.0f*Pi/180.0f,static_cast<float>(game.width)/game.height,0.05f,70.0f);
     const std::array<float,16> model{1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
 
@@ -1708,25 +1631,9 @@ void render(Game& game) {
         glBindVertexArray(game.routeVao);
         glDrawArrays(GL_TRIANGLES,0,game.routeVertexCount);
     }
-    if (game.started && game.character.loaded) {
-        int frame=0;
-        if (!game.characterWalk.empty())
-            frame=std::clamp(static_cast<int>(game.walkPhase/(2.0f*Pi)*game.characterWalk.size()),
-                             0,static_cast<int>(game.characterWalk.size())-1);
-        const ModelObject& actor=game.walking>0.05f && !game.characterWalk.empty() && game.characterWalk[frame].loaded
-            ? game.characterWalk[frame] : game.character;
-        const float angle=Pi*0.5f-game.yaw;
-        const Vec3 right{std::cos(angle),0.0f,-std::sin(angle)};
-        const Vec3 up{0.0f,1.0f,0.0f};
-        const Vec3 forward{std::sin(angle),0.0f,std::cos(angle)};
-        const Vec3 modelBack{-forward.x,0.0f,-forward.z};
-        const auto characterTransform=basisTransform(right,modelBack,up,{game.x,modelBob,game.z},1.0f);
-        if (game.thirdPerson) drawModel(game,actor,characterTransform);
-        else {
-            drawModel(game,actor,characterTransform,true);
-            const auto heldLight=basisTransform(heldRight,heldUp,heldForward,heldOrigin,heldScale);
-            drawModel(game,game.flashlight,heldLight);
-        }
+    if (game.started && game.flashlight.loaded) {
+        const auto heldLight=basisTransform(heldRight,heldUp,heldForward,heldOrigin,heldScale);
+        drawModel(game,game.flashlight,heldLight);
     }
     renderUi(game);
     SwapBuffers(game.dc);

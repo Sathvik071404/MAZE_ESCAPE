@@ -17,11 +17,11 @@ cmake -S . -B build
 cmake --build build --config Release
 ```
 
-Run `build\Release\MazeEscape.exe` with a Visual Studio generator, or `build\MazeEscape.exe` with a single-configuration generator. CMake copies the textures and models next to the executable.
+Run `build\Release\MazeEscape.exe` with a Visual Studio generator, or `build\MazeEscape.exe` with a single-configuration generator. CMake copies the textures and flashlight model next to the executable.
 
 ## Play from the GitHub ZIP
 
-Download and extract the repository ZIP, then double-click `MazeEscape.exe` in the extracted folder. Keep the `assets` folder beside the executable; it contains the textures and 3D models. No build tools are needed.
+Download and extract the repository ZIP, then double-click `MazeEscape.exe` in the extracted folder. Keep the `assets` folder beside the executable; it contains the textures and flashlight model. No build tools are needed.
 
 ## Controls
 
@@ -33,11 +33,11 @@ Download and extract the repository ZIP, then double-click `MazeEscape.exe` in t
 - **O**: reveal the route for one second (15-second cooldown)
 - **Esc**: pause; Esc again returns to the title screen
 - **S**: open settings from the title screen or pause menu
-- **Settings**: Up/Down selects; Left/Right changes; Enter toggles sound, camera, or Back
+- **Settings**: Up/Down selects; Left/Right changes; Enter toggles sound or Back
 - **Click**: start or resume
 - **R**: restart after escaping
 
-Settings include window resolution (960x600, 1280x800, 1600x900, or fullscreen), brightness, contrast, sound on/off, and first/third-person camera. Choices are saved to `settings.ini` beside the executable. Third-person follows Chisa from behind; first-person shows her body when looking down and the flashlight in view. Chisa uses a baked walk cycle. The brightness and contrast controls range from 50 to 150 percent.
+Settings include window resolution (960x600, 1280x800, 1600x900, or fullscreen), brightness, contrast, and sound on/off. Choices are saved to `settings.ini` beside the executable. The game uses a first-person view with a flashlight. The brightness and contrast controls range from 50 to 150 percent.
 
 The O skill runs A* on the walkable grid and briefly draws the shortest route to the exit. The game maze is a spanning tree, so there is only one corridor route to solve; A* efficiently finds that route from the player's current position. Walls block the view, the flashlight is a short spotlight, and the timer stops when you escape. Footsteps play as you move, with cues for the menu, route reveal, and escape. The route skill appears at the lower right while playing.
 
@@ -45,10 +45,6 @@ The O skill runs A* on the walkable grid and briefly draws the shortest route to
 
 The bundled leafy grass, weathered gray block wall, and moonlit sky are converted to PPM for the built-in OpenGL loader. Source assets are CC0 from [Poly Haven Leafy Grass](https://polyhaven.com/a/leafy_grass), [Old Stone Wall](https://polyhaven.com/a/old_stone_wall), and [Qwantani Moon Noon (Pure Sky)](https://polyhaven.com/a/qwantani_moon_noon_puresky). The wall shader lightens the stone and adds scattered moss patches; the source texture includes worn joints and small cavities.
 
-## Model credits
+## Flashlight credit
 
 "Old Flashlight" (https://skfb.ly/6zFGo) by Blender3D is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
-
-"Chisa Wuthering waves" (https://skfb.ly/pEZvB) by Hollowlight is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
-
-The supplied Chisa model is included in a static pose. The source FBX did not contain animation clips, so character walking animations are not included.
