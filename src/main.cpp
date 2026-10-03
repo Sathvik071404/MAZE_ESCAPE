@@ -39,10 +39,32 @@
 #define GL_TEXTURE1 0x84C1
 #define GL_TEXTURE2 0x84C2
 #define GL_TEXTURE3 0x84C3
+#define GL_TEXTURE4 0x84C4
+#define GL_TEXTURE5 0x84C5
+#define GL_TEXTURE6 0x84C6
+#define GL_TEXTURE7 0x84C7
+#define GL_TEXTURE8 0x84C8
 #endif
 #ifndef GL_CLAMP_TO_EDGE
 #define GL_CLAMP_TO_EDGE 0x812F
 #define GL_LINEAR_MIPMAP_LINEAR 0x2703
+#endif
+#ifndef GL_CLAMP_TO_BORDER
+#define GL_CLAMP_TO_BORDER 0x812D
+#define GL_TEXTURE_BORDER_COLOR 0x1004
+#endif
+#ifndef GL_FRAMEBUFFER
+#define GL_FRAMEBUFFER 0x8D40
+#define GL_DEPTH_ATTACHMENT 0x8D00
+#define GL_FRAMEBUFFER_COMPLETE 0x8CD5
+#define GL_DEPTH_COMPONENT24 0x81A6
+#endif
+#ifndef GL_NONE
+#define GL_NONE 0
+#endif
+#ifndef GL_R8
+#define GL_R8 0x8229
+#define GL_RED 0x1903
 #endif
 #ifndef GL_BGRA
 #define GL_BGRA 0x80E1
@@ -77,6 +99,10 @@ using BindBuffer = void(APIENTRY*)(GLenum, GLuint);
 using BufferData = void(APIENTRY*)(GLenum, GLsizeiptr, const void*, GLenum);
 using EnableVertexAttribArray = void(APIENTRY*)(GLuint);
 using VertexAttribPointer = void(APIENTRY*)(GLuint, GLint, GLenum, GLboolean, GLsizei, const void*);
+using GenFramebuffers = void(APIENTRY*)(GLsizei, GLuint*);
+using BindFramebuffer = void(APIENTRY*)(GLenum, GLuint);
+using FramebufferTexture2D = void(APIENTRY*)(GLenum, GLenum, GLenum, GLuint, GLint);
+using CheckFramebufferStatus = GLenum(APIENTRY*)(GLenum);
 
 CreateShader glCreateShader;
 ShaderSource glShaderSource;
@@ -105,8 +131,12 @@ BindBuffer glBindBuffer;
 BufferData glBufferData;
 EnableVertexAttribArray glEnableVertexAttribArray;
 VertexAttribPointer glVertexAttribPointer;
+GenFramebuffers glGenFramebuffers;
+BindFramebuffer glBindFramebuffer;
+FramebufferTexture2D glFramebufferTexture2D;
+CheckFramebufferStatus glCheckFramebufferStatus;
 
-constexpr int MapSize = 488;
+constexpr int MapSize = 560;
 constexpr float Cell = 0.0625f;
 constexpr float HalfMaze = MapSize * Cell * 0.5f;
 constexpr float Pi = 3.14159265f;
@@ -114,7 +144,6 @@ constexpr float ExitAngle = 95.625f * Pi / 180.0f; // Center of the 32-sector ou
 constexpr int RingCount = 6;
 constexpr float CenterRadius = 2.75f, RadialStep = 2.05f;
 constexpr float WallHalfThickness = 0.10f, DoorHalfWidth = 0.90f;
-constexpr float OuterRadius = CenterRadius + RadialStep * RingCount;
 
 int sectorsForRing(int ring) {
     // Doubling ring counts keeps each child doorway away from parent wall spokes.
@@ -135,7 +164,13 @@ struct UiVertex { float x, y, r, g, b, a; };
 struct Vec3 { float x, y, z; };
 struct ModelPart { GLsizei first = 0, count = 0; GLuint texture = 0; std::string material; };
 struct ModelObject { GLuint vao = 0, vbo = 0; std::vector<ModelPart> parts; bool loaded = false; };
-struct WallArc { float radius, startAngle, endAngle; bool capStart, capEnd; };
+struct WallArc {
+    int boundary;
+    float startAngle, endAngle;
+    bool capStart, capEnd;
+    float holeCenterAngle = 0.0f, holeHalfWidth = 0.0f;
+    float holeBottom = 0.0f, holeTop = 0.0f;
+};
 struct RadialWall { float angle, startRadius, endRadius; bool capStart, capEnd; };
 
 struct Game {
@@ -146,6 +181,7 @@ struct Game {
     std::vector<std::string> map;
     std::vector<WallArc> wallArcs;
     std::vector<RadialWall> radialWalls;
+    float mazePhaseA = 0.0f, mazePhaseB = 0.0f;
     std::filesystem::path executableDirectory;
     std::filesystem::path settingsPath;
     GLsizei worldVertexCount = 0;
@@ -163,13 +199,19 @@ struct Game {
     float brightness = 1.0f, contrast = 1.0f;
     bool alternateFootstep = false;
     GLuint worldProgram = 0, skyProgram = 0, uiProgram = 0;
+    GLuint shadowProgram = 0, shadowFramebuffer = 0, shadowTexture = 0;
     GLuint worldVao = 0, worldVbo = 0, routeVao = 0, routeVbo = 0;
     GLuint skyVao = 0, skyVbo = 0, uiVao = 0, uiVbo = 0;
     ModelObject flashlight;
     std::unordered_map<std::wstring,GLuint> flashlightTextures;
     GLuint grassTexture = 0, stoneTexture = 0, skyTexture = 0;
+    GLuint grassNormalTexture = 0, stoneNormalTexture = 0;
+    GLuint grassRoughnessTexture = 0, stoneRoughnessTexture = 0;
+    GLuint grassAoTexture = 0, stoneAoTexture = 0;
     GLint viewLoc = -1, projectionLoc = -1, modelLoc = -1, eyeLoc = -1, flashLoc = -1, lightPosLoc = -1;
     GLint brightnessLoc = -1, contrastLoc = -1;
+    GLint shadowMatrixLoc = -1, shadowMapLoc = -1;
+    GLint depthMatrixLoc = -1, depthModelLoc = -1;
     GLint skyViewLoc = -1, skyProjectionLoc = -1, skyEyeLoc = -1, skySamplerLoc = -1;
     GLint skyBrightnessLoc = -1, skyContrastLoc = -1;
 };
@@ -203,8 +245,26 @@ bool loadGl() {
     LOAD_GL(GenVertexArrays); LOAD_GL(BindVertexArray);
     LOAD_GL(GenBuffers); LOAD_GL(BindBuffer); LOAD_GL(BufferData);
     LOAD_GL(EnableVertexAttribArray); LOAD_GL(VertexAttribPointer);
+    LOAD_GL(GenFramebuffers); LOAD_GL(BindFramebuffer); LOAD_GL(FramebufferTexture2D); LOAD_GL(CheckFramebufferStatus);
 #undef LOAD_GL
     return true;
+}
+
+float boundaryRadius(const Game& game, int boundary, float angle) {
+    const float base=CenterRadius+RadialStep*boundary;
+    if (boundary==0) return base;
+    const float progress=static_cast<float>(boundary)/RingCount;
+    const float shape=0.68f*std::sin(angle*3.0f+game.mazePhaseA)
+                     +0.32f*std::sin(angle*5.0f+game.mazePhaseB);
+    return base+0.82f*progress*shape;
+}
+
+std::array<float,16> multiplyMatrix(const std::array<float,16>& a,const std::array<float,16>& b) {
+    std::array<float,16> result{};
+    for (int column=0;column<4;++column) for (int row=0;row<4;++row)
+        for (int inner=0;inner<4;++inner)
+            result[column*4+row]+=a[inner*4+row]*b[column*4+inner];
+    return result;
 }
 
 GLuint compileShader(GLenum kind, const char* source) {
@@ -340,27 +400,71 @@ std::vector<Vertex> buildMaze(const Game& game) {
         return Vec3{std::cos(angle)*radius,y,std::sin(angle)*radius};
     };
     for (const WallArc& arc:game.wallArcs) {
-        const int segments=std::max(1,static_cast<int>(std::ceil((arc.endAngle-arc.startAngle)*arc.radius/0.12f)));
-        const float innerRadius=arc.radius-wallHalf, outerRadius=arc.radius+wallHalf;
-        auto addSide=[&](float radius,float a0,float a1,Vec3 normal) {
-            const float u0=a0*radius*0.72f, u1=a1*radius*0.72f, v1=wallHeight*0.72f;
-            addQuadWithUV(out,{at(radius,a0,0),at(radius,a1,0),at(radius,a1,wallHeight),at(radius,a0,wallHeight)},
-                          {{{u0,0},{u1,0},{u1,v1},{u0,v1}}},normal,r,g,b);
-        };
-        for (int i=0;i<segments;++i) {
-            const float a0=arc.startAngle+(arc.endAngle-arc.startAngle)*i/segments;
-            const float a1=arc.startAngle+(arc.endAngle-arc.startAngle)*(i+1)/segments;
-            const float middle=(a0+a1)*0.5f;
+        const float middleRadius=boundaryRadius(game,arc.boundary,(arc.startAngle+arc.endAngle)*0.5f);
+        const int segments=std::max(1,static_cast<int>(std::ceil((arc.endAngle-arc.startAngle)*middleRadius/0.08f)));
+        const float holeHalfAngle=arc.holeHalfWidth>0.0f?arc.holeHalfWidth/middleRadius:0.0f;
+        const float holeStart=arc.holeCenterAngle-holeHalfAngle, holeEnd=arc.holeCenterAngle+holeHalfAngle;
+        std::vector<float> angles;
+        angles.reserve(static_cast<size_t>(segments)+3);
+        for (int i=0;i<=segments;++i)
+            angles.push_back(arc.startAngle+(arc.endAngle-arc.startAngle)*i/segments);
+        if (arc.holeHalfWidth>0.0f) { angles.push_back(holeStart); angles.push_back(holeEnd); }
+        std::sort(angles.begin(),angles.end());
+        angles.erase(std::unique(angles.begin(),angles.end(),[](float a,float c){return std::abs(a-c)<1.0e-6f;}),angles.end());
+        float along=0.0f;
+        for (size_t i=0;i+1<angles.size();++i) {
+            const float a0=angles[i], a1=angles[i+1], middle=(a0+a1)*0.5f;
+            if (a0<arc.startAngle || a1>arc.endAngle) continue;
+            const float inner0=boundaryRadius(game,arc.boundary,a0)-wallHalf;
+            const float inner1=boundaryRadius(game,arc.boundary,a1)-wallHalf;
+            const float outer0=boundaryRadius(game,arc.boundary,a0)+wallHalf;
+            const float outer1=boundaryRadius(game,arc.boundary,a1)+wallHalf;
+            const float segmentLength=middleRadius*(a1-a0);
+            const float u0=along*0.72f, u1=(along+segmentLength)*0.72f;
+            const bool inHole=arc.holeHalfWidth>0.0f && a0>=holeStart-1.0e-5f && a1<=holeEnd+1.0e-5f;
             const Vec3 outward{std::cos(middle),0.0f,std::sin(middle)};
-            addSide(outerRadius,a0,a1,outward);
-            addSide(innerRadius,a0,a1,{-outward.x,0.0f,-outward.z});
-            addQuad(out,at(innerRadius,a0,wallHeight),at(outerRadius,a0,wallHeight),
-                    at(outerRadius,a1,wallHeight),at(innerRadius,a1,wallHeight),
-                    {0,1,0},r,g,b);
+            auto addSide=[&](float sign,Vec3 normal,float y0,float y1) {
+                const float radius0=boundaryRadius(game,arc.boundary,a0)+sign*wallHalf;
+                const float radius1=boundaryRadius(game,arc.boundary,a1)+sign*wallHalf;
+                addQuadWithUV(out,{at(radius0,a0,y0),at(radius1,a1,y0),at(radius1,a1,y1),at(radius0,a0,y1)},
+                              {{{u0,y0*0.72f},{u1,y0*0.72f},{u1,y1*0.72f},{u0,y1*0.72f}}},normal,r,g,b);
+            };
+            if (inHole) {
+                addSide(1.0f,outward,0.0f,arc.holeBottom);
+                addSide(1.0f,outward,arc.holeTop,wallHeight);
+                addSide(-1.0f,{-outward.x,0.0f,-outward.z},0.0f,arc.holeBottom);
+                addSide(-1.0f,{-outward.x,0.0f,-outward.z},arc.holeTop,wallHeight);
+            } else {
+                addSide(1.0f,outward,0.0f,wallHeight);
+                addSide(-1.0f,{-outward.x,0.0f,-outward.z},0.0f,wallHeight);
+            }
+            addQuad(out,at(inner0,a0,wallHeight),at(outer0,a0,wallHeight),
+                    at(outer1,a1,wallHeight),at(inner1,a1,wallHeight),{0,1,0},r,g,b);
+            along+=segmentLength;
+        }
+        if (arc.holeHalfWidth>0.0f) {
+            const float innerStart=boundaryRadius(game,arc.boundary,holeStart)-wallHalf;
+            const float outerStart=boundaryRadius(game,arc.boundary,holeStart)+wallHalf;
+            const float innerEnd=boundaryRadius(game,arc.boundary,holeEnd)-wallHalf;
+            const float outerEnd=boundaryRadius(game,arc.boundary,holeEnd)+wallHalf;
+            addQuad(out,at(innerStart,holeStart,arc.holeBottom),at(outerStart,holeStart,arc.holeBottom),
+                    at(outerEnd,holeEnd,arc.holeBottom),at(innerEnd,holeEnd,arc.holeBottom),{0,1,0},r,g,b);
+            addQuad(out,at(innerStart,holeStart,arc.holeTop),at(outerStart,holeStart,arc.holeTop),
+                    at(outerEnd,holeEnd,arc.holeTop),at(innerEnd,holeEnd,arc.holeTop),{0,-1,0},r,g,b);
+            const Vec3 tangentStart{-std::sin(holeStart),0.0f,std::cos(holeStart)};
+            const Vec3 tangentEnd{-std::sin(holeEnd),0.0f,std::cos(holeEnd)};
+            addQuad(out,at(innerStart,holeStart,arc.holeBottom),at(outerStart,holeStart,arc.holeBottom),
+                    at(outerStart,holeStart,arc.holeTop),at(innerStart,holeStart,arc.holeTop),
+                    {-tangentStart.x,0.0f,-tangentStart.z},r,g,b);
+            addQuad(out,at(outerEnd,holeEnd,arc.holeBottom),at(innerEnd,holeEnd,arc.holeBottom),
+                    at(innerEnd,holeEnd,arc.holeTop),at(outerEnd,holeEnd,arc.holeTop),
+                    tangentEnd,r,g,b);
         }
         auto addCap=[&](float angle,bool end) {
             const Vec3 tangent{-std::sin(angle),0.0f,std::cos(angle)};
             const float sign=end?1.0f:-1.0f;
+            const float innerRadius=boundaryRadius(game,arc.boundary,angle)-wallHalf;
+            const float outerRadius=boundaryRadius(game,arc.boundary,angle)+wallHalf;
             addQuad(out,at(innerRadius,angle,0),at(outerRadius,angle,0),
                     at(outerRadius,angle,wallHeight),at(innerRadius,angle,wallHeight),
                     {tangent.x*sign,0.0f,tangent.z*sign},r,g,b);
@@ -393,7 +497,7 @@ std::vector<Vertex> buildMaze(const Game& game) {
                     atSide(wall.endRadius,half,wallHeight),atSide(wall.endRadius,-half,wallHeight),
                     direction,r,g,b);
     }
-    const float gateRadius=OuterRadius+0.30f;
+    const float gateRadius=boundaryRadius(game,RingCount,ExitAngle)+0.30f;
     const float gateX=std::cos(ExitAngle)*gateRadius, gateZ=std::sin(ExitAngle)*gateRadius;
     addBox(out,gateX-1.08f,gateX-0.95f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
     addBox(out,gateX+0.95f,gateX+1.08f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
@@ -432,6 +536,9 @@ bool generateMaze(Game& game) {
 
     std::random_device randomDevice;
     std::mt19937 random(randomDevice());
+    std::uniform_real_distribution<float> phase(0.0f,2.0f*Pi);
+    game.mazePhaseA=phase(random);
+    game.mazePhaseB=phase(random);
     std::vector<std::vector<int>> passages(nodes.size());
     std::vector<uint8_t> visited(nodes.size(),0);
     std::vector<int> stack{0};
@@ -450,7 +557,6 @@ bool generateMaze(Game& game) {
     }
     if (std::find(visited.begin(),visited.end(),uint8_t{0})!=visited.end()) return false;
 
-    const float outerRadius=OuterRadius;
     auto wrap=[&](float angle) { return std::atan2(std::sin(angle),std::cos(angle)); };
     auto hasPassage=[&](int a,int b) {
         const auto& edges=passages[a];
@@ -459,35 +565,48 @@ bool generateMaze(Game& game) {
     const int outerSectors=sectorsForRing(RingCount);
     const int exitSector=std::min(outerSectors-1,static_cast<int>(ExitAngle/(2.0f*Pi)*outerSectors));
     const float outerPortalAngle=(exitSector+0.5f)*2.0f*Pi/outerSectors;
+    std::uniform_real_distribution<float> holeChance(0.0f,1.0f);
+    auto addWallArc=[&](int boundary,float start,float end,bool capStart,bool capEnd) {
+        WallArc arc{boundary,start,end,capStart,capEnd};
+        const float localRadius=boundaryRadius(game,boundary,(start+end)*0.5f);
+        const float arcLength=(end-start)*localRadius;
+        if (boundary>0 && boundary<RingCount && arcLength>1.0f && holeChance(random)<0.16f) {
+            arc.holeCenterAngle=(start+end)*0.5f;
+            arc.holeHalfWidth=std::min(0.25f,arcLength*0.12f);
+            arc.holeBottom=1.16f;
+            arc.holeTop=1.62f;
+        }
+        game.wallArcs.push_back(arc);
+    };
 
     game.wallArcs.clear();
     game.radialWalls.clear();
     for (int boundary=0;boundary<RingCount;++boundary) {
-        const float radius=CenterRadius+boundary*RadialStep;
         const int outerRing=boundary+1, outerSectors=sectorsForRing(outerRing);
         const int innerSectors=sectorsForRing(boundary);
         const float sectorArc=2.0f*Pi/outerSectors;
         for (int sector=0;sector<outerSectors;++sector) {
             const float start=sector*sectorArc, end=start+sectorArc, center=(start+end)*0.5f;
+            const float radius=boundaryRadius(game,boundary,center);
             const int parent=std::min(innerSectors-1,static_cast<int>((sector+0.5f)*innerSectors/outerSectors));
             const bool open=hasPassage(rings[outerRing][sector],rings[boundary][parent]);
             if (!open) {
-                game.wallArcs.push_back({radius,start,end,false,false});
+                addWallArc(boundary,start,end,false,false);
                 continue;
             }
             const float opening=std::min(DoorHalfWidth+WallHalfThickness,0.46f*sectorArc*radius);
             const float halfAngle=opening/radius;
-            game.wallArcs.push_back({radius,start,center-halfAngle,false,true});
-            game.wallArcs.push_back({radius,center+halfAngle,end,true,false});
+            addWallArc(boundary,start,center-halfAngle,false,true);
+            addWallArc(boundary,center+halfAngle,end,true,false);
         }
     }
     for (int ring=1;ring<=RingCount;++ring) {
         const int sectors=sectorsForRing(ring);
-        const float innerRadius=CenterRadius+(ring-1)*RadialStep;
-        const float outerRadiusForRing=innerRadius+RadialStep;
-        const float middleRadius=(innerRadius+outerRadiusForRing)*0.5f;
         for (int boundary=0;boundary<sectors;++boundary) {
             const float angle=2.0f*Pi*boundary/sectors;
+            const float innerRadius=boundaryRadius(game,ring-1,angle);
+            const float outerRadiusForRing=boundaryRadius(game,ring,angle);
+            const float middleRadius=(innerRadius+outerRadiusForRing)*0.5f;
             const int before=(boundary+sectors-1)%sectors, after=boundary;
             const bool open=hasPassage(rings[ring][before],rings[ring][after]);
             if (!open) {
@@ -500,33 +619,35 @@ bool generateMaze(Game& game) {
                                         outerRadiusForRing,true,false});
         }
     }
-    const float exitHalfAngle=(DoorHalfWidth+WallHalfThickness)/outerRadius;
-    game.wallArcs.push_back({outerRadius,0.0f,outerPortalAngle-exitHalfAngle,false,true});
-    game.wallArcs.push_back({outerRadius,outerPortalAngle+exitHalfAngle,2.0f*Pi,true,false});
+    const float exitRadius=boundaryRadius(game,RingCount,outerPortalAngle);
+    const float exitHalfAngle=(DoorHalfWidth+WallHalfThickness)/exitRadius;
+    addWallArc(RingCount,0.0f,outerPortalAngle-exitHalfAngle,false,true);
+    addWallArc(RingCount,outerPortalAngle+exitHalfAngle,2.0f*Pi,true,false);
 
     game.map.assign(MapSize,std::string(MapSize,'#'));
     for (int row=0;row<MapSize;++row) for (int col=0;col<MapSize;++col) {
         const float x=HalfMaze-(col+0.5f)*Cell;
         const float z=HalfMaze-(row+0.5f)*Cell;
         const float radius=std::hypot(x,z), angle=std::atan2(z,x);
+        const float outerRadius=boundaryRadius(game,RingCount,angle);
         bool floor=false;
         if (radius>=outerRadius) {
-            floor=std::abs(wrap(angle-ExitAngle))*outerRadius<DoorHalfWidth && radius<outerRadius+0.26f;
+            floor=std::abs(wrap(angle-ExitAngle))*outerRadius<DoorHalfWidth && radius<outerRadius+0.95f;
         } else if (radius<CenterRadius) {
             floor=true;
         } else {
-            const int ring=std::clamp(static_cast<int>(std::ceil((radius-CenterRadius)/RadialStep)),1,RingCount);
+            int ring=1;
+            while (ring<RingCount && radius>=boundaryRadius(game,ring,angle)) ++ring;
             const int sectors=sectorsForRing(ring);
             float turn=angle/(2.0f*Pi);
             if (turn<0.0f) turn+=1.0f;
             const float sectorPosition=turn*sectors;
             const int sector=std::min(sectors-1,static_cast<int>(sectorPosition));
-            const int cellId=rings[ring][sector];
             floor=true;
 
             for (int boundary=0;boundary<RingCount;++boundary) {
-                const float boundaryRadius=CenterRadius+boundary*RadialStep;
-                if (std::abs(radius-boundaryRadius)>=WallHalfThickness) continue;
+                const float localBoundaryRadius=boundaryRadius(game,boundary,angle);
+                if (std::abs(radius-localBoundaryRadius)>=WallHalfThickness) continue;
                 const int outerRing=boundary+1;
                 const int outerSectors=sectorsForRing(outerRing);
                 const int outerSector=std::min(outerSectors-1,static_cast<int>(turn*outerSectors));
@@ -535,8 +656,8 @@ bool generateMaze(Game& game) {
                 const int innerSectors=sectorsForRing(boundary);
                 const int parentSector=std::min(innerSectors-1,static_cast<int>((outerSector+0.5f)*innerSectors/outerSectors));
                 const int innerId=rings[boundary][parentSector];
-                const float opening=std::min(DoorHalfWidth,0.46f*(2.0f*Pi*boundaryRadius/outerSectors));
-                if (!hasPassage(outerId,innerId) || std::abs(wrap(angle-outerCenter))*boundaryRadius>=opening)
+                const float opening=std::min(DoorHalfWidth,0.46f*(2.0f*Pi*boundaryRadius(game,boundary,outerCenter)/outerSectors));
+                if (!hasPassage(outerId,innerId) || std::abs(wrap(angle-outerCenter))*localBoundaryRadius>=opening)
                     floor=false;
                 break;
             }
@@ -547,7 +668,7 @@ bool generateMaze(Game& game) {
                 const int edgeBefore=(fraction<0.5f?(sector+sectors-1)%sectors:sector);
                 const int other=(edgeBefore+1)%sectors;
                 const int edgeA=rings[ring][edgeBefore], edgeB=rings[ring][other];
-                const float middleRadius=CenterRadius+(ring-0.5f)*RadialStep;
+                const float middleRadius=(boundaryRadius(game,ring-1,angle)+boundaryRadius(game,ring,angle))*0.5f;
                 if (!hasPassage(edgeA,edgeB) || std::abs(radius-middleRadius)>DoorHalfWidth)
                     floor=false;
             }
@@ -593,7 +714,7 @@ bool atFloor(const Game& game, float x, float z) {
     const float radius=std::hypot(x,z);
     const float angle=std::atan2(z,x);
     const float delta=std::atan2(std::sin(angle-ExitAngle),std::cos(angle-ExitAngle));
-    return radius<16.0f && std::abs(delta)<0.11f;
+    return radius<boundaryRadius(game,RingCount,angle)+0.95f && std::abs(delta)<0.11f;
 }
 
 bool canStand(const Game& game, float x, float z) {
@@ -709,7 +830,8 @@ void activateRoute(Game& game) {
         if (nearest<0) return;
         start=nearest;
     }
-    const float goalRadius=OuterRadius-0.45f;
+    const float exitRadius=boundaryRadius(game,RingCount,ExitAngle);
+    const float goalRadius=exitRadius-0.45f;
     int goal=-1;
     float goalDistance=std::numeric_limits<float>::max();
     for (int cell=0;cell<count;++cell) if (safe[cell]) {
@@ -717,7 +839,7 @@ void activateRoute(Game& game) {
         const float wx=p.x, wz=p.z;
         const float radius=std::hypot(wx,wz), angle=std::atan2(wz,wx);
         const float angleDelta=std::atan2(std::sin(angle-ExitAngle),std::cos(angle-ExitAngle));
-        if (radius<OuterRadius-0.8f || std::abs(angleDelta)*radius>DoorHalfWidth-0.4f) continue;
+        if (radius<exitRadius-0.8f || std::abs(angleDelta)*radius>DoorHalfWidth-0.4f) continue;
         const float distance=(radius-goalRadius)*(radius-goalRadius)+angleDelta*angleDelta*goalRadius*goalRadius;
         if (distance<goalDistance) { goalDistance=distance; goal=cell; }
     }
@@ -768,7 +890,7 @@ void activateRoute(Game& game) {
     const Vec3 playerPosition{game.x,0.025f,game.z}, startPosition=center(start);
     if (clearLine(playerPosition,startPosition)) addRibbon(playerPosition,startPosition);
     for (size_t i=1;i<path.size();++i) addRibbon(center(path[i-1]),center(path[i]));
-    const Vec3 exit{std::cos(ExitAngle)*(OuterRadius+0.45f),0.025f,std::sin(ExitAngle)*(OuterRadius+0.45f)};
+    const Vec3 exit{std::cos(ExitAngle)*(exitRadius+0.45f),0.025f,std::sin(ExitAngle)*(exitRadius+0.45f)};
     if (clearLine(center(path.back()),exit)) addRibbon(center(path.back()),exit);
     glBindVertexArray(game.routeVao); glBindBuffer(GL_ARRAY_BUFFER,game.routeVbo);
     glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(Vertex)),vertices.data(),GL_DYNAMIC_DRAW);
@@ -979,6 +1101,8 @@ out vec3 vColor;
 out float vEmission;
 out vec2 vUv;
 out float vMaterial;
+out vec4 vLightPosition;
+uniform mat4 uLightMatrix;
 void main() {
     vec4 world = uModel * vec4(aPosition, 1.0);
     vWorld = world.xyz;
@@ -987,8 +1111,20 @@ void main() {
     vEmission = aEmission;
     vUv = aUv;
     vMaterial = aMaterial;
+    vLightPosition = uLightMatrix * world;
     gl_Position = uProjection * uView * world;
 })GLSL";
+
+constexpr char ShadowVertexShader[] = R"GLSL(#version 330 core
+layout(location=0) in vec3 aPosition;
+uniform mat4 uLightMatrix;
+uniform mat4 uModel;
+void main() { gl_Position=uLightMatrix*uModel*vec4(aPosition,1.0); }
+)GLSL";
+
+constexpr char ShadowFragmentShader[] = R"GLSL(#version 330 core
+void main() { }
+)GLSL";
 
 constexpr char WorldFragmentShader[] = R"GLSL(#version 330 core
 in vec3 vWorld;
@@ -997,6 +1133,7 @@ in vec3 vColor;
 in float vEmission;
 in vec2 vUv;
 in float vMaterial;
+in vec4 vLightPosition;
 uniform vec3 uEye;
 uniform vec3 uFlash;
 uniform vec3 uLightPos;
@@ -1004,44 +1141,98 @@ uniform float uBrightness;
 uniform float uContrast;
 uniform sampler2D uGrass;
 uniform sampler2D uStone;
+uniform sampler2D uGrassNormal;
+uniform sampler2D uStoneNormal;
+uniform sampler2D uGrassRoughness;
+uniform sampler2D uStoneRoughness;
+uniform sampler2D uGrassAO;
+uniform sampler2D uStoneAO;
 uniform sampler2D uPropTexture;
+uniform sampler2D uShadowMap;
 out vec4 outColor;
+vec3 srgbToLinear(vec3 color) { return pow(max(color,vec3(0.0)),vec3(2.2)); }
+vec3 mappedNormal(vec3 normal,vec3 position,vec2 uv,vec3 sampleNormal) {
+    vec3 dp1=dFdx(position), dp2=dFdy(position);
+    vec2 duv1=dFdx(uv), duv2=dFdy(uv);
+    vec3 tangent=normalize(dp1*duv2.y-dp2*duv1.y);
+    vec3 bitangent=normalize(-dp1*duv2.x+dp2*duv1.x);
+    float handedness=sign(dot(cross(normal,tangent),bitangent));
+    bitangent=normalize(cross(normal,tangent))*handedness;
+    return normalize(mat3(tangent,bitangent,normal)*(sampleNormal*2.0-1.0));
+}
+float shadowVisibility(vec3 normal,vec3 lightDirection) {
+    vec3 projected=vLightPosition.xyz/vLightPosition.w;
+    projected=projected*0.5+0.5;
+    if (projected.z>1.0 || any(lessThan(projected.xy,vec2(0.0))) || any(greaterThan(projected.xy,vec2(1.0)))) return 1.0;
+    float bias=max(0.0016*(1.0-dot(normal,lightDirection)),0.00055);
+    vec2 texel=1.0/vec2(textureSize(uShadowMap,0));
+    float visible=0.0;
+    for (int x=-1;x<=1;++x) for (int y=-1;y<=1;++y) {
+        float depth=texture(uShadowMap,projected.xy+vec2(x,y)*texel).r;
+        visible+=projected.z-bias<=depth?1.0:0.0;
+    }
+    return visible/9.0;
+}
 void main() {
     vec3 toPoint = vWorld - uLightPos;
     float distanceToEye = length(vWorld - uEye);
     float distanceToLight = length(toPoint);
     float cone = dot(normalize(toPoint), normalize(uFlash));
-    float spot = smoothstep(0.76, 0.93, cone);
-    float diffuse = max(dot(normalize(vNormal), normalize(uLightPos - vWorld)), 0.0);
-    float attenuation = 1.0 / (1.0 + 0.09*distanceToLight + 0.035*distanceToLight*distanceToLight);
+    float spot = smoothstep(0.66, 0.90, cone);
+    vec3 lightDirection=normalize(uLightPos-vWorld);
+    vec3 normal=normalize(vNormal);
     vec3 albedo = vColor;
     float alpha=1.0;
+    float roughness=0.88;
+    float ambientOcclusion=1.0;
     if (vMaterial > 3.5) {
         vec4 texel=texture(uPropTexture,vUv);
         if (texel.a<0.18) discard;
-        albedo*=pow(max(texel.rgb,vec3(0.0)),vec3(0.58));
+        albedo*=srgbToLinear(texel.rgb);
         alpha=texel.a;
-    }
-    if (vMaterial < 0.5) albedo *= texture(uGrass, vUv).rgb;
-    else if (vMaterial < 1.5) {
-        vec3 source = texture(uStone, vUv).rgb;
-        float stoneValue = dot(source, vec3(0.299,0.587,0.114));
-        vec3 grayStone = mix(vec3(0.30,0.33,0.34), vec3(0.92,0.94,0.92), smoothstep(0.16,0.72,stoneValue));
-        vec2 patchCell = floor(vUv*1.4);
-        vec2 patchUv = fract(vUv*1.4);
+        roughness=0.52;
+    } else if (vMaterial < 0.5) {
+        vec2 uv=vUv*0.62;
+        vec3 fineGrass=srgbToLinear(texture(uGrass,uv).rgb);
+        vec3 broadGrass=srgbToLinear(texture(uGrass,uv*0.5+vec2(0.17,0.31)).rgb);
+        albedo*=mix(fineGrass,broadGrass,0.18)*0.94;
+        normal=mappedNormal(normal,vWorld,uv,texture(uGrassNormal,uv).rgb);
+        roughness=clamp(texture(uGrassRoughness,uv).r,0.35,1.0);
+        ambientOcclusion=texture(uGrassAO,uv).r;
+    } else if (vMaterial < 1.5) {
+        vec2 uv=vUv*0.78;
+        vec3 detail=srgbToLinear(texture(uStone,uv).rgb);
+        vec3 fineStone=srgbToLinear(texture(uStone,uv*1.65).rgb);
+        vec3 source=mix(detail,fineStone,0.12);
+        vec3 grayStone=pow(max(source,vec3(0.0)),vec3(0.76))*vec3(0.88,0.94,1.0);
+        vec2 patchCell=floor(vUv*1.1);
+        vec2 patchUv=fract(vUv*1.1);
         float seed = fract(sin(dot(patchCell,vec2(127.1,311.7)))*43758.5453);
         vec2 center = vec2(fract(seed*17.13),fract(seed*39.71));
-        float grassCoverage = (1.0-smoothstep(0.13,0.34,length((patchUv-center)*vec2(1.0,0.72))))*step(0.68,seed);
-        grassCoverage *= 0.45+0.55*(1.0-smoothstep(0.25,1.7,vWorld.y));
-        vec3 grass = texture(uGrass,vUv*2.0).rgb;
-        vec3 moss = vec3(0.07,0.24,0.045)*(0.8+0.6*grass.g);
+        float grassCoverage=(1.0-smoothstep(0.12,0.31,length((patchUv-center)*vec2(1.0,0.72))))*step(0.70,seed);
+        grassCoverage*=0.38+0.62*(1.0-smoothstep(0.18,1.35,vWorld.y));
+        vec3 grass=srgbToLinear(texture(uGrass,vUv*0.62).rgb);
+        vec3 moss=grass*vec3(0.38,0.72,0.24);
         albedo = mix(grayStone,moss,grassCoverage);
+        normal=mappedNormal(normal,vWorld,uv*1.65,texture(uStoneNormal,uv*1.65).rgb);
+        roughness=clamp(texture(uStoneRoughness,uv).r,0.25,1.0);
+        ambientOcclusion=texture(uStoneAO,uv).r;
     }
-    float ambient = vMaterial > 3.5 ? 0.82 : (vMaterial < 0.5 ? 0.018 : 0.009);
-    vec3 lit = albedo * (ambient + spot*(1.05 + 1.25*diffuse)*attenuation) + vColor*vEmission;
-    float fog = smoothstep(10.0, 18.0, distanceToEye);
-    vec3 color=mix(lit, vec3(0.001,0.002,0.006), fog);
+    float diffuse=max(dot(normal,lightDirection),0.0);
+    float attenuation=1.0/(1.0+0.055*distanceToLight+0.012*distanceToLight*distanceToLight);
+    float shadow=vMaterial>3.5?1.0:shadowVisibility(normal,lightDirection);
+    float contact=vMaterial>0.5 && vMaterial<1.5?mix(0.70,1.0,smoothstep(0.0,0.38,vWorld.y)):1.0;
+    vec3 moonFill=vMaterial<0.5?vec3(0.017,0.024,0.018):vec3(0.022,0.030,0.047);
+    moonFill*=contact*mix(0.58,1.0,ambientOcclusion);
+    vec3 halfway=normalize(lightDirection+normalize(uEye-vWorld));
+    float specular=pow(max(dot(normal,halfway),0.0),mix(96.0,5.0,roughness));
+    vec3 specularColor=mix(vec3(0.10,0.095,0.075),vec3(0.24,0.28,0.34),1.0-roughness);
+    vec3 direct=vec3(1.0,0.91,0.78)*spot*attenuation*shadow;
+    vec3 lit=albedo*(moonFill+direct*(0.14+1.12*diffuse))+specularColor*specular*direct*pow(1.0-roughness,2.0)*0.55+vColor*vEmission;
+    float fog=smoothstep(14.0,27.0,distanceToEye);
+    vec3 color=mix(lit,vec3(0.0015,0.003,0.009),fog);
     color=max((color-vec3(0.5))*uContrast+vec3(0.5),vec3(0.0))*uBrightness;
+    color=pow(max(color,vec3(0.0)),vec3(1.0/2.2));
     outColor = vec4(color, alpha);
 })GLSL";
 
@@ -1142,7 +1333,29 @@ GLuint loadTexture(const std::filesystem::path& path, GLint wrapS, GLint wrapT) 
     return texture;
 }
 
-GLuint loadPngTexture(const std::filesystem::path& path) {
+bool createShadowResources(Game& game) {
+    constexpr int resolution=2048;
+    glGenTextures(1,&game.shadowTexture);
+    glBindTexture(GL_TEXTURE_2D,game.shadowTexture);
+    glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,resolution,resolution,0,GL_DEPTH_COMPONENT,GL_FLOAT,nullptr);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_BORDER);
+    const float border[]={1.0f,1.0f,1.0f,1.0f};
+    glTexParameterfv(GL_TEXTURE_2D,GL_TEXTURE_BORDER_COLOR,border);
+    glGenFramebuffers(1,&game.shadowFramebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER,game.shadowFramebuffer);
+    glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,game.shadowTexture,0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    const bool complete=glCheckFramebufferStatus(GL_FRAMEBUFFER)==GL_FRAMEBUFFER_COMPLETE;
+    glBindFramebuffer(GL_FRAMEBUFFER,0);
+    glDrawBuffer(GL_BACK);
+    return complete;
+}
+
+GLuint loadImageTexture(const std::filesystem::path& path,GLint wrapS=GL_REPEAT,GLint wrapT=GL_REPEAT,int channels=4) {
     Gdiplus::Bitmap image(path.c_str());
     if (image.GetLastStatus()!=Gdiplus::Ok) return 0;
     const int width=static_cast<int>(image.GetWidth()), height=static_cast<int>(image.GetHeight());
@@ -1151,23 +1364,35 @@ GLuint loadPngTexture(const std::filesystem::path& path) {
     Gdiplus::BitmapData data{};
     if (image.LockBits(&rect,Gdiplus::ImageLockModeRead,PixelFormat32bppARGB,&data)!=Gdiplus::Ok) return 0;
     const size_t rowBytes=static_cast<size_t>(width)*4;
-    if (data.Stride==0 || static_cast<size_t>(std::abs(data.Stride))<rowBytes) {
+    if ((channels!=1 && channels!=3 && channels!=4) || data.Stride==0 || static_cast<size_t>(std::abs(data.Stride))<rowBytes) {
         image.UnlockBits(&data);
         return 0;
     }
-    std::vector<uint8_t> pixels(rowBytes*static_cast<size_t>(height));
+    std::vector<uint8_t> pixels(static_cast<size_t>(width)*height*channels);
     const auto* firstRow=static_cast<const uint8_t*>(data.Scan0);
-    for (int y=0;y<height;++y)
-        std::memcpy(pixels.data()+static_cast<size_t>(y)*rowBytes,
-                    firstRow+static_cast<ptrdiff_t>(y)*data.Stride,rowBytes);
+    for (int y=0;y<height;++y) {
+        const auto* source=firstRow+static_cast<ptrdiff_t>(height-1-y)*data.Stride;
+        for (int x=0;x<width;++x) {
+            const size_t sourceIndex=static_cast<size_t>(x)*4;
+            const size_t targetIndex=(static_cast<size_t>(y)*width+x)*channels;
+            if (channels==1) pixels[targetIndex]=source[sourceIndex+2];
+            else if (channels==3) {
+                pixels[targetIndex]=source[sourceIndex+2];
+                pixels[targetIndex+1]=source[sourceIndex+1];
+                pixels[targetIndex+2]=source[sourceIndex];
+            } else std::memcpy(pixels.data()+targetIndex,source+sourceIndex,4);
+        }
+    }
     GLuint texture=0;
     glGenTextures(1,&texture);
     glBindTexture(GL_TEXTURE_2D,texture);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,wrapS);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,wrapT);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,width,height,0,GL_BGRA,GL_UNSIGNED_BYTE,pixels.data());
+    const GLint internalFormat=channels==1?GL_R8:(channels==3?GL_RGB:GL_RGBA);
+    const GLenum format=channels==1?GL_RED:(channels==3?GL_RGB:GL_BGRA);
+    glTexImage2D(GL_TEXTURE_2D,0,internalFormat,width,height,0,format,GL_UNSIGNED_BYTE,pixels.data());
     glGenerateMipmap(GL_TEXTURE_2D);
     image.UnlockBits(&data);
     return texture;
@@ -1265,7 +1490,7 @@ bool loadObjModel(Game& game,const std::filesystem::path& path,ModelObject& outp
             const auto cached=game.flashlightTextures.find(key);
             if (cached!=game.flashlightTextures.end()) part.texture=cached->second;
             else {
-                part.texture=loadPngTexture(texturePath->second);
+                part.texture=loadImageTexture(texturePath->second,GL_REPEAT,GL_REPEAT,4);
                 game.flashlightTextures.emplace(key,part.texture);
             }
         }
@@ -1304,7 +1529,8 @@ bool initializeRenderer(Game& game) {
     game.worldProgram=makeProgram(WorldVertexShader,WorldFragmentShader);
     game.skyProgram=makeProgram(SkyVertexShader,SkyFragmentShader);
     game.uiProgram=makeProgram(UiVertexShader,UiFragmentShader);
-    if (!game.worldProgram || !game.skyProgram || !game.uiProgram) return false;
+    game.shadowProgram=makeProgram(ShadowVertexShader,ShadowFragmentShader);
+    if (!game.worldProgram || !game.skyProgram || !game.uiProgram || !game.shadowProgram) return false;
     game.viewLoc=glGetUniformLocation(game.worldProgram,"uView");
     game.projectionLoc=glGetUniformLocation(game.worldProgram,"uProjection");
     game.modelLoc=glGetUniformLocation(game.worldProgram,"uModel");
@@ -1313,6 +1539,11 @@ bool initializeRenderer(Game& game) {
     game.lightPosLoc=glGetUniformLocation(game.worldProgram,"uLightPos");
     game.brightnessLoc=glGetUniformLocation(game.worldProgram,"uBrightness");
     game.contrastLoc=glGetUniformLocation(game.worldProgram,"uContrast");
+    game.shadowMatrixLoc=glGetUniformLocation(game.worldProgram,"uLightMatrix");
+    game.shadowMapLoc=glGetUniformLocation(game.worldProgram,"uShadowMap");
+
+    game.depthMatrixLoc=glGetUniformLocation(game.shadowProgram,"uLightMatrix");
+    game.depthModelLoc=glGetUniformLocation(game.shadowProgram,"uModel");
 
     game.skyViewLoc=glGetUniformLocation(game.skyProgram,"uView");
     game.skyProjectionLoc=glGetUniformLocation(game.skyProgram,"uProjection");
@@ -1324,10 +1555,19 @@ bool initializeRenderer(Game& game) {
     wchar_t executable[MAX_PATH]{};
     GetModuleFileNameW(nullptr,executable,MAX_PATH);
     const auto textureDir=std::filesystem::path(executable).parent_path()/L"assets"/L"textures";
-    game.grassTexture=loadTexture(textureDir/L"grass.ppm",GL_REPEAT,GL_REPEAT);
-    game.stoneTexture=loadTexture(textureDir/L"stone.ppm",GL_REPEAT,GL_REPEAT);
+    const auto pbrDir=textureDir/L"pbr";
+    game.grassTexture=loadImageTexture(pbrDir/L"forest_ground_diffuse_2k.jpg",GL_REPEAT,GL_REPEAT,3);
+    game.grassNormalTexture=loadImageTexture(pbrDir/L"forest_ground_normal_2k.jpg",GL_REPEAT,GL_REPEAT,3);
+    game.grassRoughnessTexture=loadImageTexture(pbrDir/L"forest_ground_roughness_2k.jpg",GL_REPEAT,GL_REPEAT,1);
+    game.grassAoTexture=loadImageTexture(pbrDir/L"forest_ground_ao_2k.jpg",GL_REPEAT,GL_REPEAT,1);
+    game.stoneTexture=loadImageTexture(pbrDir/L"stone_wall_diffuse_2k.jpg",GL_REPEAT,GL_REPEAT,3);
+    game.stoneNormalTexture=loadImageTexture(pbrDir/L"stone_wall_normal_2k.jpg",GL_REPEAT,GL_REPEAT,3);
+    game.stoneRoughnessTexture=loadImageTexture(pbrDir/L"stone_wall_roughness_2k.jpg",GL_REPEAT,GL_REPEAT,1);
+    game.stoneAoTexture=loadImageTexture(pbrDir/L"stone_wall_ao_2k.jpg",GL_REPEAT,GL_REPEAT,1);
     game.skyTexture=loadTexture(textureDir/L"night_sky.ppm",GL_REPEAT,GL_CLAMP_TO_EDGE);
-    if (!game.grassTexture || !game.stoneTexture || !game.skyTexture) return false;
+    if (!game.grassTexture || !game.grassNormalTexture || !game.grassRoughnessTexture || !game.grassAoTexture ||
+        !game.stoneTexture || !game.stoneNormalTexture || !game.stoneRoughnessTexture || !game.stoneAoTexture ||
+        !game.skyTexture) return false;
 
     const auto vertices=buildMaze(game);
     game.worldVertexCount=static_cast<GLsizei>(vertices.size());
@@ -1354,9 +1594,17 @@ bool initializeRenderer(Game& game) {
     glUseProgram(game.worldProgram);
     glUniform1i(glGetUniformLocation(game.worldProgram,"uGrass"),0);
     glUniform1i(glGetUniformLocation(game.worldProgram,"uStone"),1);
+    glUniform1i(glGetUniformLocation(game.worldProgram,"uGrassNormal"),2);
+    glUniform1i(glGetUniformLocation(game.worldProgram,"uStoneNormal"),3);
     glUniform1i(glGetUniformLocation(game.worldProgram,"uPropTexture"),3);
+    glUniform1i(game.shadowMapLoc,4);
+    glUniform1i(glGetUniformLocation(game.worldProgram,"uGrassRoughness"),5);
+    glUniform1i(glGetUniformLocation(game.worldProgram,"uStoneRoughness"),6);
+    glUniform1i(glGetUniformLocation(game.worldProgram,"uGrassAO"),7);
+    glUniform1i(glGetUniformLocation(game.worldProgram,"uStoneAO"),8);
     glUseProgram(game.skyProgram);
     glUniform1i(game.skySamplerLoc,2);
+    if (!createShadowResources(game)) return false;
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     const auto modelDir=std::filesystem::path(executable).parent_path()/L"assets"/L"models";
@@ -1405,7 +1653,8 @@ void movePlayer(Game& game, float dt) {
     const float radius=std::hypot(game.x,game.z);
     const float angle=std::atan2(game.z,game.x);
     const float delta=std::atan2(std::sin(angle-ExitAngle),std::cos(angle-ExitAngle));
-    if (radius>=OuterRadius+0.10f && std::abs(delta)*OuterRadius<=DoorHalfWidth+0.45f) {
+    const float exitRadius=boundaryRadius(game,RingCount,ExitAngle);
+    if (radius>=exitRadius+0.10f && std::abs(delta)*exitRadius<=DoorHalfWidth+0.45f) {
         game.won=true;
         regenerateMaze(game);
         captureMouse(game,false);
@@ -1574,9 +1823,6 @@ void drawModel(Game& game,const ModelObject& object,const std::array<float,16>& 
 }
 
 void render(Game& game) {
-    glViewport(0,0,game.width,game.height);
-    glClearColor(0.004f,0.007f,0.012f,1.0f);
-    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
     const float bob=std::sin(game.bobPhase*2.0f)*0.025f*game.movementBob;
     Vec3 eye{game.x,1.38f+bob,game.z};
     const float cp=std::cos(game.pitch);
@@ -1601,6 +1847,24 @@ void render(Game& game) {
     const auto view=viewMatrix(eye,game.yaw,game.pitch);
     const auto projection=perspective(70.0f*Pi/180.0f,static_cast<float>(game.width)/game.height,0.05f,70.0f);
     const std::array<float,16> model{1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+    const auto lightView=viewMatrix(lightPos,game.yaw,game.pitch);
+    const auto lightProjection=perspective(98.0f*Pi/180.0f,1.0f,0.12f,32.0f);
+    const auto lightMatrix=multiplyMatrix(lightProjection,lightView);
+
+    glBindFramebuffer(GL_FRAMEBUFFER,game.shadowFramebuffer);
+    glViewport(0,0,2048,2048);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    glUseProgram(game.shadowProgram);
+    glUniformMatrix4fv(game.depthMatrixLoc,1,GL_FALSE,lightMatrix.data());
+    glUniformMatrix4fv(game.depthModelLoc,1,GL_FALSE,model.data());
+    glBindVertexArray(game.worldVao);
+    glDrawArrays(GL_TRIANGLES,0,game.worldVertexCount);
+    glBindFramebuffer(GL_FRAMEBUFFER,0);
+    glDrawBuffer(GL_BACK);
+
+    glViewport(0,0,game.width,game.height);
+    glClearColor(0.004f,0.007f,0.012f,1.0f);
+    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
     glDisable(GL_DEPTH_TEST);
     glUseProgram(game.skyProgram);
@@ -1623,8 +1887,16 @@ void render(Game& game) {
     glUniform3f(game.lightPosLoc,lightPos.x,lightPos.y,lightPos.z);
     glUniform1f(game.brightnessLoc,game.brightness);
     glUniform1f(game.contrastLoc,game.contrast);
+    glUniformMatrix4fv(game.shadowMatrixLoc,1,GL_FALSE,lightMatrix.data());
     glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,game.grassTexture);
     glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D,game.stoneTexture);
+    glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D,game.grassNormalTexture);
+    glActiveTexture(GL_TEXTURE3); glBindTexture(GL_TEXTURE_2D,game.stoneNormalTexture);
+    glActiveTexture(GL_TEXTURE4); glBindTexture(GL_TEXTURE_2D,game.shadowTexture);
+    glActiveTexture(GL_TEXTURE5); glBindTexture(GL_TEXTURE_2D,game.grassRoughnessTexture);
+    glActiveTexture(GL_TEXTURE6); glBindTexture(GL_TEXTURE_2D,game.stoneRoughnessTexture);
+    glActiveTexture(GL_TEXTURE7); glBindTexture(GL_TEXTURE_2D,game.grassAoTexture);
+    glActiveTexture(GL_TEXTURE8); glBindTexture(GL_TEXTURE_2D,game.stoneAoTexture);
     glBindVertexArray(game.worldVao);
     glDrawArrays(GL_TRIANGLES,0,game.worldVertexCount);
     if (game.routeVisible>0.0f && game.routeVertexCount>0) {
