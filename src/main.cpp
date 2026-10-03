@@ -170,6 +170,8 @@ struct WallArc {
     bool capStart, capEnd;
     float holeCenterAngle = 0.0f, holeHalfWidth = 0.0f;
     float holeBottom = 0.0f, holeTop = 0.0f;
+    float crumbleStartLength = 0.0f, crumbleStartHeight = 0.0f;
+    float crumbleEndLength = 0.0f, crumbleEndHeight = 0.0f;
 };
 struct RadialWall { float angle, startRadius, endRadius; bool capStart, capEnd; };
 
@@ -377,6 +379,41 @@ void addQuadWithUV(std::vector<Vertex>& out, std::array<Vec3,4> points,
     out.insert(out.end(),{v[0],v[1],v[2],v[0],v[2],v[3]});
 }
 
+void addStoneTriangle(std::vector<Vertex>& out,Vec3 a,Vec3 b,Vec3 c,Vec3 expectedNormal,
+                      float r,float g,float blue) {
+    Vec3 normal=normalize(cross({b.x-a.x,b.y-a.y,b.z-a.z},{c.x-a.x,c.y-a.y,c.z-a.z}));
+    if (dot(normal,expectedNormal)<0.0f) { std::swap(b,c); normal={-normal.x,-normal.y,-normal.z}; }
+    const Vec3 points[]={a,b,c};
+    for (Vec3 p:points)
+        out.push_back({p.x,p.y,p.z,normal.x,normal.y,normal.z,r,g,blue,0.0f,p.x*0.72f,p.y*0.72f,1.0f});
+}
+
+void addRubbleChunk(std::vector<Vertex>& out,Vec3 center,float yaw,float radiusX,float radiusZ,float height) {
+    constexpr int sides=5;
+    std::array<Vec3,sides> bottom{},middle{},upper{};
+    for (int i=0;i<sides;++i) {
+        const float angle=yaw+2.0f*Pi*i/sides;
+        const float shape=0.80f+0.18f*std::sin(angle*3.7f+center.x*9.0f+center.z*4.0f);
+        const float midScale=0.60f+0.12f*std::cos(angle*2.9f+center.z*7.0f);
+        const float topScale=0.30f+0.09f*std::sin(angle*4.3f+center.x*5.0f);
+        bottom[i]={center.x+std::cos(angle)*radiusX*shape,center.y,center.z+std::sin(angle)*radiusZ*shape};
+        middle[i]={center.x+std::cos(angle)*radiusX*midScale,center.y+height*(0.42f+0.12f*std::sin(angle*5.0f)),center.z+std::sin(angle)*radiusZ*midScale};
+        upper[i]={center.x+std::cos(angle)*radiusX*topScale,center.y+height*0.82f,center.z+std::sin(angle)*radiusZ*topScale};
+    }
+    const Vec3 top{center.x+radiusX*0.08f,center.y+height,center.z-radiusZ*0.06f};
+    const std::array<float,3> tint{0.78f,0.82f,0.79f};
+    for (int i=0;i<sides;++i) {
+        const int next=(i+1)%sides;
+        const Vec3 outward{(middle[i].x+middle[next].x)*0.5f-center.x,0.0f,
+                           (middle[i].z+middle[next].z)*0.5f-center.z};
+        addStoneTriangle(out,bottom[i],bottom[next],middle[next],outward,tint[0],tint[1],tint[2]);
+        addStoneTriangle(out,bottom[i],middle[next],middle[i],outward,tint[0],tint[1],tint[2]);
+        addStoneTriangle(out,middle[i],middle[next],upper[next],outward,tint[0],tint[1],tint[2]);
+        addStoneTriangle(out,middle[i],upper[next],upper[i],outward,tint[0],tint[1],tint[2]);
+        addStoneTriangle(out,upper[i],upper[next],top,{0.0f,1.0f,0.0f},tint[0],tint[1],tint[2]);
+    }
+}
+
 void addBox(std::vector<Vertex>& out, float x0, float x1, float y0, float y1,
             float z0, float z1, float r, float g, float b, float emission, float material = 1.0f) {
     addQuad(out,{x0,y1,z0},{x1,y1,z0},{x1,y1,z1},{x0,y1,z1},{0,1,0},r,g,b,emission,material);
@@ -398,6 +435,18 @@ std::vector<Vertex> buildMaze(const Game& game) {
     const float r=0.86f, g=0.88f, b=0.86f;
     auto at=[&](float radius,float angle,float y) {
         return Vec3{std::cos(angle)*radius,y,std::sin(angle)*radius};
+    };
+    auto edgeDamage=[](const WallArc& arc,float angle,float radius) {
+        auto chip=[](float distance,float length,float height,float phase) {
+            if (length<=0.0f || distance>=length) return 0.0f;
+            const float remaining=1.0f-distance/length;
+            const float jagged=0.68f+0.32f*std::sin(distance*17.0f+phase);
+            return height*remaining*jagged;
+        };
+        const float fromStart=(angle-arc.startAngle)*radius;
+        const float fromEnd=(arc.endAngle-angle)*radius;
+        return std::max(chip(fromStart,arc.crumbleStartLength,arc.crumbleStartHeight,arc.startAngle*31.0f),
+                        chip(fromEnd,arc.crumbleEndLength,arc.crumbleEndHeight,arc.endAngle*27.0f));
     };
     for (const WallArc& arc:game.wallArcs) {
         const float middleRadius=boundaryRadius(game,arc.boundary,(arc.startAngle+arc.endAngle)*0.5f);
@@ -422,24 +471,26 @@ std::vector<Vertex> buildMaze(const Game& game) {
             const float segmentLength=middleRadius*(a1-a0);
             const float u0=along*0.72f, u1=(along+segmentLength)*0.72f;
             const bool inHole=arc.holeHalfWidth>0.0f && a0>=holeStart-1.0e-5f && a1<=holeEnd+1.0e-5f;
+            const float top0=wallHeight-edgeDamage(arc,a0,middleRadius);
+            const float top1=wallHeight-edgeDamage(arc,a1,middleRadius);
             const Vec3 outward{std::cos(middle),0.0f,std::sin(middle)};
-            auto addSide=[&](float sign,Vec3 normal,float y0,float y1) {
+            auto addSide=[&](float sign,Vec3 normal,float bottom0,float bottom1,float topStart,float topEnd) {
                 const float radius0=boundaryRadius(game,arc.boundary,a0)+sign*wallHalf;
                 const float radius1=boundaryRadius(game,arc.boundary,a1)+sign*wallHalf;
-                addQuadWithUV(out,{at(radius0,a0,y0),at(radius1,a1,y0),at(radius1,a1,y1),at(radius0,a0,y1)},
-                              {{{u0,y0*0.72f},{u1,y0*0.72f},{u1,y1*0.72f},{u0,y1*0.72f}}},normal,r,g,b);
+                addQuadWithUV(out,{at(radius0,a0,bottom0),at(radius1,a1,bottom1),at(radius1,a1,topEnd),at(radius0,a0,topStart)},
+                              {{{u0,bottom0*0.72f},{u1,bottom1*0.72f},{u1,topEnd*0.72f},{u0,topStart*0.72f}}},normal,r,g,b);
             };
             if (inHole) {
-                addSide(1.0f,outward,0.0f,arc.holeBottom);
-                addSide(1.0f,outward,arc.holeTop,wallHeight);
-                addSide(-1.0f,{-outward.x,0.0f,-outward.z},0.0f,arc.holeBottom);
-                addSide(-1.0f,{-outward.x,0.0f,-outward.z},arc.holeTop,wallHeight);
+                addSide(1.0f,outward,0.0f,0.0f,arc.holeBottom,arc.holeBottom);
+                addSide(1.0f,outward,arc.holeTop,arc.holeTop,top0,top1);
+                addSide(-1.0f,{-outward.x,0.0f,-outward.z},0.0f,0.0f,arc.holeBottom,arc.holeBottom);
+                addSide(-1.0f,{-outward.x,0.0f,-outward.z},arc.holeTop,arc.holeTop,top0,top1);
             } else {
-                addSide(1.0f,outward,0.0f,wallHeight);
-                addSide(-1.0f,{-outward.x,0.0f,-outward.z},0.0f,wallHeight);
+                addSide(1.0f,outward,0.0f,0.0f,top0,top1);
+                addSide(-1.0f,{-outward.x,0.0f,-outward.z},0.0f,0.0f,top0,top1);
             }
-            addQuad(out,at(inner0,a0,wallHeight),at(outer0,a0,wallHeight),
-                    at(outer1,a1,wallHeight),at(inner1,a1,wallHeight),{0,1,0},r,g,b);
+            addQuad(out,at(inner0,a0,top0),at(outer0,a0,top0),
+                    at(outer1,a1,top1),at(inner1,a1,top1),{0,1,0},r,g,b);
             along+=segmentLength;
         }
         if (arc.holeHalfWidth>0.0f) {
@@ -465,12 +516,31 @@ std::vector<Vertex> buildMaze(const Game& game) {
             const float sign=end?1.0f:-1.0f;
             const float innerRadius=boundaryRadius(game,arc.boundary,angle)-wallHalf;
             const float outerRadius=boundaryRadius(game,arc.boundary,angle)+wallHalf;
+            const float top=wallHeight-edgeDamage(arc,angle,middleRadius);
             addQuad(out,at(innerRadius,angle,0),at(outerRadius,angle,0),
-                    at(outerRadius,angle,wallHeight),at(innerRadius,angle,wallHeight),
+                    at(outerRadius,angle,top),at(innerRadius,angle,top),
                     {tangent.x*sign,0.0f,tangent.z*sign},r,g,b);
         };
         if (arc.capStart) addCap(arc.startAngle,false);
         if (arc.capEnd) addCap(arc.endAngle,true);
+    }
+    for (const WallArc& arc:game.wallArcs) {
+        if (arc.crumbleStartLength<=0.0f && arc.crumbleEndLength<=0.0f) continue;
+        const float middleRadius=boundaryRadius(game,arc.boundary,(arc.startAngle+arc.endAngle)*0.5f);
+        const float side=((arc.boundary*17+static_cast<int>(arc.startAngle*100.0f))&1)?1.0f:-1.0f;
+        auto addDebrisAt=[&](float edgeAngle,float distance,float height,float direction) {
+            if (height<=0.0f) return;
+            for (int piece=0;piece<3;++piece) {
+                const float along=distance+0.13f*piece;
+                const float angle=edgeAngle+direction*along/middleRadius;
+                const float radius=boundaryRadius(game,arc.boundary,angle)+side*(wallHalf+0.14f);
+                const float size=piece==0?0.24f:0.13f+0.035f*piece;
+                addRubbleChunk(out,at(radius,angle,0.004f),angle+piece*0.83f,size,
+                               size*(0.72f+0.08f*piece),std::min(0.34f,height*(piece==0?0.32f:0.18f)));
+            }
+        };
+        addDebrisAt(arc.startAngle,arc.crumbleStartLength*0.22f,arc.crumbleStartHeight,1.0f);
+        addDebrisAt(arc.endAngle,arc.crumbleEndLength*0.22f,arc.crumbleEndHeight,-1.0f);
     }
     for (const RadialWall& wall:game.radialWalls) {
         const Vec3 direction{std::cos(wall.angle),0.0f,std::sin(wall.angle)};
@@ -575,6 +645,17 @@ bool generateMaze(Game& game) {
             arc.holeHalfWidth=std::min(0.25f,arcLength*0.12f);
             arc.holeBottom=1.16f;
             arc.holeTop=1.62f;
+        } else if (boundary>0 && boundary<RingCount && arcLength>1.8f && holeChance(random)<0.12f) {
+            std::uniform_real_distribution<float> crumbleLength(0.5f,1.0f);
+            std::uniform_real_distribution<float> crumbleHeight(0.55f,1.25f);
+            if (holeChance(random)<0.78f) {
+                arc.crumbleStartLength=crumbleLength(random);
+                arc.crumbleStartHeight=crumbleHeight(random);
+            }
+            if (holeChance(random)<0.78f) {
+                arc.crumbleEndLength=crumbleLength(random);
+                arc.crumbleEndHeight=crumbleHeight(random);
+            }
         }
         game.wallArcs.push_back(arc);
     };
@@ -1355,7 +1436,8 @@ bool createShadowResources(Game& game) {
     return complete;
 }
 
-GLuint loadImageTexture(const std::filesystem::path& path,GLint wrapS=GL_REPEAT,GLint wrapT=GL_REPEAT,int channels=4) {
+GLuint loadImageTexture(const std::filesystem::path& path,GLint wrapS=GL_REPEAT,GLint wrapT=GL_REPEAT,
+                        int channels=4,bool flipRows=true) {
     Gdiplus::Bitmap image(path.c_str());
     if (image.GetLastStatus()!=Gdiplus::Ok) return 0;
     const int width=static_cast<int>(image.GetWidth()), height=static_cast<int>(image.GetHeight());
@@ -1371,7 +1453,8 @@ GLuint loadImageTexture(const std::filesystem::path& path,GLint wrapS=GL_REPEAT,
     std::vector<uint8_t> pixels(static_cast<size_t>(width)*height*channels);
     const auto* firstRow=static_cast<const uint8_t*>(data.Scan0);
     for (int y=0;y<height;++y) {
-        const auto* source=firstRow+static_cast<ptrdiff_t>(height-1-y)*data.Stride;
+        const int sourceY=flipRows?height-1-y:y;
+        const auto* source=firstRow+static_cast<ptrdiff_t>(sourceY)*data.Stride;
         for (int x=0;x<width;++x) {
             const size_t sourceIndex=static_cast<size_t>(x)*4;
             const size_t targetIndex=(static_cast<size_t>(y)*width+x)*channels;
@@ -1490,7 +1573,8 @@ bool loadObjModel(Game& game,const std::filesystem::path& path,ModelObject& outp
             const auto cached=game.flashlightTextures.find(key);
             if (cached!=game.flashlightTextures.end()) part.texture=cached->second;
             else {
-                part.texture=loadImageTexture(texturePath->second,GL_REPEAT,GL_REPEAT,4);
+                // The OBJ loader flips vt above to compensate for top-down images. Keep its historical upload order.
+                part.texture=loadImageTexture(texturePath->second,GL_REPEAT,GL_REPEAT,4,false);
                 game.flashlightTextures.emplace(key,part.texture);
             }
         }
