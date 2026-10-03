@@ -4,7 +4,7 @@ A first-person OpenGL maze game built directly on Win32/WGL. Each new run genera
 
 ## Code graph
 
-This graph maps 209 code and documentation symbols and 358 extracted relationships across 10 communities. The [interactive graph](graphify-out/graph.html) and [graph data](graphify-out/graph.json) are also included.
+The refreshed project graph maps 324 code and documentation symbols and 553 extracted relationships across 13 communities. Explore the [interactive graph](graphify-out/graph.html) or inspect its [graph data](graphify-out/graph.json).
 
 ![Maze Escape code graph](graphify-out/graph.svg)
 
@@ -30,16 +30,19 @@ Download and extract the repository ZIP, then double-click `MazeEscape.exe` in t
 - **A / D**: strafe
 - **Shift**: sprint
 - **Mouse**: look around
-- **O**: reveal the route for one second (15-second cooldown)
+- **F**: toggle the flashlight (battery is conserved while it is off)
+- **O**: reveal the route for one second (15-second cooldown on Normal; difficulty changes it)
 - **Esc**: pause; Esc again returns to the title screen
 - **S**: open settings from the title screen or pause menu
-- **Settings**: Up/Down selects; Left/Right changes; Enter toggles sound or Back
+- **Settings**: Up/Down selects; Left/Right changes; Enter toggles sound, head bob, or Back
 - **Click**: start or resume
 - **R**: restart after escaping
 
-Settings include window resolution (960x600, 1280x800, 1600x900, or fullscreen), brightness, contrast, and sound on/off. Choices are saved to `settings.ini` beside the executable. The game uses a first-person view with a flashlight. The brightness and contrast controls range from 50 to 150 percent.
+Settings include window resolution (960x600, 1280x800, 1600x900, or fullscreen), brightness, contrast, sound, difficulty, mouse sensitivity, and head bob. Choices are saved to `settings.ini` beside the executable. Battery use, starting charge, and route-skill cooldown scale with difficulty. Find the glowing battery packs in dead ends to recharge. The brightness and contrast controls range from 50 to 150 percent.
 
-The O skill runs A* on the walkable grid and briefly draws the shortest route to the exit. The game maze is a spanning tree, so there is only one corridor route to solve; A* efficiently finds that route from the player's current position. The flashlight casts filtered real-time shadows. The stone walls and forest floor use bundled 2K PBR maps for color, normal detail, roughness, and ambient occlusion, with scattered moss on the stone. The outer rings vary in shape on each map while the starting chamber remains circular. Selected wall ends have chipped silhouettes and small fallen stones; they are decorative and stay out of the route. A few narrow eye-level gaps let you glimpse adjacent corridors; they remain solid for movement. Corridors stay wide enough for comfortable movement. The timer stops when you escape. Footsteps play as you move, with cues for the menu, route reveal, and escape.
+The O skill runs A* on the walkable grid and briefly draws the shortest route to the exit. The game maze is a spanning tree, so there is only one corridor route to solve; A* efficiently finds that route from the player's current position. The flashlight casts filtered real-time shadows. Its beam may briefly stutter, with an electrical sound cue. The stone walls and forest floor use bundled 2K PBR maps for color, normal detail, roughness, and ambient occlusion, with scattered moss on the stone. The outer rings vary in shape on each map while the starting chamber remains circular. Selected wall ends have chipped silhouettes and small fallen stones; they are decorative and stay out of the route. A few narrow eye-level gaps let you glimpse adjacent corridors; they remain solid for movement. Corridors stay wide enough for comfortable movement. The timer stops when you escape. Footsteps, switch and pickup sounds, and a quiet stereo exit cue add spatial feedback. The night sky has procedural stars, a moving moon, and drifting clouds. Clear sky brings strong blue moonlight; dense cloud cover dims the maze back to darkness.
+
+The title shows the current maze seed and your best time. The best time and its seed are saved locally in `settings.ini`. To replay a particular generated maze, run `MazeEscape.exe --seed 123456`; replace the number with the seed shown on the title or escape screen. Each new run still generates its own map unless a seed is supplied at launch.
 
 ## Textures
 

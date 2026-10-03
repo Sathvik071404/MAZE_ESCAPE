@@ -6,11 +6,14 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <cwchar>
+#include <cwctype>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -162,6 +165,7 @@ struct Vertex {
 struct SkyVertex { float x, y, z, u, v; };
 struct UiVertex { float x, y, r, g, b, a; };
 struct Vec3 { float x, y, z; };
+struct BatteryPickup { float x=0.0f, z=0.0f; bool collected=false; };
 struct ModelPart { GLsizei first = 0, count = 0; GLuint texture = 0; std::string material; };
 struct ModelObject { GLuint vao = 0, vbo = 0; std::vector<ModelPart> parts; bool loaded = false; };
 struct WallArc {
@@ -175,6 +179,82 @@ struct WallArc {
 };
 struct RadialWall { float angle, startRadius, endRadius; bool capStart, capEnd; };
 
+struct SpatialAudio {
+    static constexpr int SampleRate=44100, FramesPerBuffer=1024, BufferCount=4;
+    struct Buffer { WAVEHDR header{}; std::array<int16_t,FramesPerBuffer*2> samples{}; };
+    HWAVEOUT device=nullptr;
+    std::array<Buffer,BufferCount> buffers{};
+    std::atomic<bool> active{false},enabled{true};
+    std::atomic<float> cuePan{0.0f},cueVolume{0.0f};
+    uint32_t noiseState=0x8f31a2c7u;
+    float filteredNoise=0.0f;
+    double cuePhase=0.0,windPhase=0.0;
+
+    static void CALLBACK callback(HWAVEOUT,UINT message,DWORD_PTR instance,DWORD_PTR parameter,DWORD_PTR) {
+        if (message!=WOM_DONE || !instance) return;
+        auto* audio=reinterpret_cast<SpatialAudio*>(instance);
+        if (audio->active.load(std::memory_order_relaxed))
+            audio->submit(reinterpret_cast<WAVEHDR*>(parameter));
+    }
+
+    void fill(Buffer& buffer) {
+        const bool play=enabled.load(std::memory_order_relaxed);
+        const float pan=std::clamp(cuePan.load(std::memory_order_relaxed),-1.0f,1.0f);
+        const float volume=std::clamp(cueVolume.load(std::memory_order_relaxed),0.0f,0.3f);
+        const float leftGain=std::sqrt((1.0f-pan)*0.5f),rightGain=std::sqrt((1.0f+pan)*0.5f);
+        for (int frame=0;frame<FramesPerBuffer;++frame) {
+            if (!play) { buffer.samples[frame*2]=buffer.samples[frame*2+1]=0; continue; }
+            noiseState^=noiseState<<13; noiseState^=noiseState>>17; noiseState^=noiseState<<5;
+            const float noise=static_cast<float>(noiseState&0xffffu)/32767.5f-1.0f;
+            filteredNoise+=0.0035f*(noise-filteredNoise);
+            const float wind=filteredNoise*(0.0028f+0.0012f*std::sin(windPhase));
+            const float swell=0.66f+0.34f*std::sin(cuePhase*0.19);
+            const float cue=(std::sin(cuePhase)+0.24f*std::sin(cuePhase*1.5))*volume*swell;
+            const float left=std::clamp(wind+cue*leftGain,-0.95f,0.95f);
+            const float right=std::clamp(wind+cue*rightGain,-0.95f,0.95f);
+            buffer.samples[frame*2]=static_cast<int16_t>(left*32767.0f);
+            buffer.samples[frame*2+1]=static_cast<int16_t>(right*32767.0f);
+            cuePhase+=2.0*Pi*212.0/SampleRate;
+            windPhase+=2.0*Pi*0.11/SampleRate;
+            if (cuePhase>2.0*Pi) cuePhase-=2.0*Pi;
+            if (windPhase>2.0*Pi) windPhase-=2.0*Pi;
+        }
+    }
+
+    void submit(WAVEHDR* header) {
+        if (!active.load(std::memory_order_relaxed) || !device || !header) return;
+        auto* buffer=reinterpret_cast<Buffer*>(reinterpret_cast<char*>(header)-offsetof(Buffer,header));
+        fill(*buffer);
+        if (active.load(std::memory_order_relaxed)) waveOutWrite(device,header,sizeof(WAVEHDR));
+    }
+
+    bool start() {
+        WAVEFORMATEX format{};
+        format.wFormatTag=WAVE_FORMAT_PCM; format.nChannels=2; format.nSamplesPerSec=SampleRate;
+        format.wBitsPerSample=16; format.nBlockAlign=4; format.nAvgBytesPerSec=SampleRate*format.nBlockAlign;
+        if (waveOutOpen(&device,WAVE_MAPPER,&format,reinterpret_cast<DWORD_PTR>(&SpatialAudio::callback),
+                        reinterpret_cast<DWORD_PTR>(this),CALLBACK_FUNCTION)!=MMSYSERR_NOERROR) return false;
+        active.store(true,std::memory_order_relaxed);
+        for (Buffer& buffer:buffers) {
+            buffer.header.lpData=reinterpret_cast<LPSTR>(buffer.samples.data());
+            buffer.header.dwBufferLength=static_cast<DWORD>(sizeof(buffer.samples));
+            if (waveOutPrepareHeader(device,&buffer.header,sizeof(WAVEHDR))!=MMSYSERR_NOERROR) { stop(); return false; }
+        }
+        for (Buffer& buffer:buffers) submit(&buffer.header);
+        return true;
+    }
+
+    void stop() {
+        active.store(false,std::memory_order_relaxed);
+        if (!device) return;
+        waveOutReset(device);
+        for (Buffer& buffer:buffers)
+            if (buffer.header.dwFlags&WHDR_PREPARED) waveOutUnprepareHeader(device,&buffer.header,sizeof(WAVEHDR));
+        waveOutClose(device);
+        device=nullptr;
+    }
+};
+
 struct Game {
     HWND window = nullptr;
     HDC dc = nullptr;
@@ -183,7 +263,10 @@ struct Game {
     std::vector<std::string> map;
     std::vector<WallArc> wallArcs;
     std::vector<RadialWall> radialWalls;
+    std::vector<BatteryPickup> batteryPickups;
     float mazePhaseA = 0.0f, mazePhaseB = 0.0f;
+    uint32_t mazeSeed=0, runSeed=0, requestedSeed=0, completedSeed=0, bestSeed=0, runtimeRandom=1;
+    bool hasRequestedSeed=false, newRecord=false, flashlightOn=true, headBobEnabled=true;
     std::filesystem::path executableDirectory;
     std::filesystem::path settingsPath;
     GLsizei worldVertexCount = 0;
@@ -193,13 +276,15 @@ struct Game {
     float stepDistance = 0.0f;
     float x = 0.0f, z = 0.0f;
     float yaw = ExitAngle, pitch = 0.0f;
-    float elapsed = 0.0f;
+    float elapsed = 0.0f, bestTime=0.0f, batteryCharge=100.0f;
     bool started = false, paused = false, won = false, mouseCaptured = false, running = true;
     bool showSettings = false, soundEnabled = true;
-    float bobPhase = 0.0f, movementBob = 0.0f;
-    int settingsIndex = 0, resolutionIndex = 1;
+    float bobPhase = 0.0f, movementBob = 0.0f, mouseSensitivity=1.0f;
+    float flickerTimer=0.0f, nextFlicker=18.0f, weatherTime=0.0f, cloudCoverage=0.05f;
+    int settingsIndex = 0, resolutionIndex = 1, difficultyIndex=1;
     float brightness = 1.0f, contrast = 1.0f;
     bool alternateFootstep = false;
+    SpatialAudio spatialAudio;
     GLuint worldProgram = 0, skyProgram = 0, uiProgram = 0;
     GLuint shadowProgram = 0, shadowFramebuffer = 0, shadowTexture = 0;
     GLuint worldVao = 0, worldVbo = 0, routeVao = 0, routeVbo = 0;
@@ -212,6 +297,7 @@ struct Game {
     GLuint grassAoTexture = 0, stoneAoTexture = 0;
     GLint viewLoc = -1, projectionLoc = -1, modelLoc = -1, eyeLoc = -1, flashLoc = -1, lightPosLoc = -1;
     GLint brightnessLoc = -1, contrastLoc = -1;
+    GLint moonlightLoc=-1, skyWeatherLoc=-1, skyCloudLoc=-1, skyMoonLoc=-1, skyMoonlightLoc=-1, flashIntensityLoc=-1;
     GLint shadowMatrixLoc = -1, shadowMapLoc = -1;
     GLint depthMatrixLoc = -1, depthModelLoc = -1;
     GLint skyViewLoc = -1, skyProjectionLoc = -1, skyEyeLoc = -1, skySamplerLoc = -1;
@@ -567,12 +653,27 @@ std::vector<Vertex> buildMaze(const Game& game) {
                     atSide(wall.endRadius,half,wallHeight),atSide(wall.endRadius,-half,wallHeight),
                     direction,r,g,b);
     }
+    for (const BatteryPickup& pickup:game.batteryPickups) if (!pickup.collected) {
+        addBox(out,pickup.x-0.12f,pickup.x+0.12f,0.045f,0.19f,pickup.z-0.07f,pickup.z+0.07f,
+               0.24f,0.28f,0.30f,0.0f,1.0f);
+        addBox(out,pickup.x-0.075f,pickup.x+0.075f,0.19f,0.225f,pickup.z-0.073f,pickup.z+0.073f,
+               0.15f,0.78f,0.48f,1.8f,2.0f);
+    }
     const float gateRadius=boundaryRadius(game,RingCount,ExitAngle)+0.30f;
     const float gateX=std::cos(ExitAngle)*gateRadius, gateZ=std::sin(ExitAngle)*gateRadius;
     addBox(out,gateX-1.08f,gateX-0.95f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
     addBox(out,gateX+0.95f,gateX+1.08f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
     addBox(out,gateX-1.08f,gateX+1.08f,1.72f,1.88f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
     return out;
+}
+
+void uploadMazeGeometry(Game& game) {
+    if (!game.worldVao || !game.worldVbo) return;
+    const auto vertices=buildMaze(game);
+    game.worldVertexCount=static_cast<GLsizei>(vertices.size());
+    glBindVertexArray(game.worldVao);
+    glBindBuffer(GL_ARRAY_BUFFER,game.worldVbo);
+    glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(Vertex)),vertices.data(),GL_DYNAMIC_DRAW);
 }
 
 bool generateMaze(Game& game) {
@@ -605,7 +706,12 @@ bool generateMaze(Game& game) {
     }
 
     std::random_device randomDevice;
-    std::mt19937 random(randomDevice());
+    const uint32_t seed=game.hasRequestedSeed?game.requestedSeed:randomDevice();
+    game.hasRequestedSeed=false;
+    game.mazeSeed=seed;
+    game.runtimeRandom=seed^0x9e3779b9u;
+    if (!game.runtimeRandom) game.runtimeRandom=1;
+    std::mt19937 random(seed);
     std::uniform_real_distribution<float> phase(0.0f,2.0f*Pi);
     game.mazePhaseA=phase(random);
     game.mazePhaseB=phase(random);
@@ -626,6 +732,22 @@ bool generateMaze(Game& game) {
         stack.push_back(next);
     }
     if (std::find(visited.begin(),visited.end(),uint8_t{0})!=visited.end()) return false;
+
+    game.batteryPickups.clear();
+    std::vector<int> deadEnds;
+    const int exitNode=rings[RingCount][std::min(sectorsForRing(RingCount)-1,
+        static_cast<int>(ExitAngle/(2.0f*Pi)*sectorsForRing(RingCount)))];
+    for (int node=1;node<static_cast<int>(nodes.size());++node)
+        if (node!=exitNode && passages[node].size()==1) deadEnds.push_back(node);
+    std::shuffle(deadEnds.begin(),deadEnds.end(),random);
+    const size_t pickupCount=std::min<size_t>(4,deadEnds.size());
+    for (size_t i=0;i<pickupCount;++i) {
+        const CellNode node=nodes[deadEnds[i]];
+        const float angle=(node.sector+0.5f)*2.0f*Pi/sectorsForRing(node.ring);
+        const float inner=boundaryRadius(game,node.ring-1,angle),outer=boundaryRadius(game,node.ring,angle);
+        const float radius=(inner+outer)*0.5f;
+        game.batteryPickups.push_back({std::cos(angle)*radius,std::sin(angle)*radius,false});
+    }
 
     auto wrap=[&](float angle) { return std::atan2(std::sin(angle),std::cos(angle)); };
     auto hasPassage=[&](int a,int b) {
@@ -771,6 +893,17 @@ bool loadMap(Game& game) {
     game.brightness=std::clamp(GetPrivateProfileIntW(L"Video",L"Brightness",100,game.settingsPath.c_str())/100.0f,0.5f,1.5f);
     game.contrast=std::clamp(GetPrivateProfileIntW(L"Video",L"Contrast",100,game.settingsPath.c_str())/100.0f,0.5f,1.5f);
     game.soundEnabled=GetPrivateProfileIntW(L"Audio",L"Sound",1,game.settingsPath.c_str())!=0;
+    game.difficultyIndex=std::clamp(static_cast<int>(GetPrivateProfileIntW(L"Game",L"Difficulty",1,game.settingsPath.c_str())),0,2);
+    game.mouseSensitivity=std::clamp(GetPrivateProfileIntW(L"Controls",L"MouseSensitivity",100,game.settingsPath.c_str())/100.0f,0.5f,2.0f);
+    game.headBobEnabled=GetPrivateProfileIntW(L"Controls",L"HeadBob",1,game.settingsPath.c_str())!=0;
+    const int bestTimeMs=GetPrivateProfileIntW(L"Records",L"BestTimeMs",0,game.settingsPath.c_str());
+    game.bestTime=bestTimeMs>0?bestTimeMs/1000.0f:0.0f;
+    wchar_t bestSeedText[32]{};
+    GetPrivateProfileStringW(L"Records",L"BestSeed",L"0",bestSeedText,32,game.settingsPath.c_str());
+    wchar_t* seedEnd=nullptr;
+    const unsigned long bestSeed=std::wcstoul(bestSeedText,&seedEnd,10);
+    game.bestSeed=seedEnd!=bestSeedText && bestSeed<=std::numeric_limits<uint32_t>::max()
+        ?static_cast<uint32_t>(bestSeed):0u;
     constexpr int widths[]={960,1280,1600}, heights[]={600,800,900};
     game.width=game.resolutionIndex==3?GetSystemMetrics(SM_CXSCREEN):widths[game.resolutionIndex];
     game.height=game.resolutionIndex==3?GetSystemMetrics(SM_CYSCREEN):heights[game.resolutionIndex];
@@ -780,12 +913,7 @@ bool loadMap(Game& game) {
 void regenerateMaze(Game& game) {
     if (!generateMaze(game)) return;
     game.routeVertexCount=0;
-    if (!game.worldVao || !game.worldVbo) return;
-    const auto vertices=buildMaze(game);
-    game.worldVertexCount=static_cast<GLsizei>(vertices.size());
-    glBindVertexArray(game.worldVao);
-    glBindBuffer(GL_ARRAY_BUFFER,game.worldVbo);
-    glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(Vertex)),vertices.data(),GL_STATIC_DRAW);
+    uploadMazeGeometry(game);
 }
 
 bool atFloor(const Game& game, float x, float z) {
@@ -837,6 +965,96 @@ void captureMouse(Game& game, bool capture) {
     }
 }
 
+float randomUnit(Game& game) {
+    uint32_t& value=game.runtimeRandom;
+    value^=value<<13; value^=value>>17; value^=value<<5;
+    return static_cast<float>(value&0x00ffffffu)/16777215.0f;
+}
+
+float initialBattery(const Game& game) {
+    return game.difficultyIndex==0?100.0f:(game.difficultyIndex==1?80.0f:65.0f);
+}
+
+float routeCooldownLength(const Game& game) {
+    return game.difficultyIndex==0?10.0f:(game.difficultyIndex==1?15.0f:25.0f);
+}
+
+void resetRunState(Game& game) {
+    game.runSeed=game.mazeSeed;
+    game.batteryCharge=initialBattery(game);
+    game.flashlightOn=true;
+    game.flickerTimer=0.0f;
+    game.nextFlicker=26.0f+randomUnit(game)*22.0f;
+    game.newRecord=false;
+}
+
+void saveRunRecord(Game& game) {
+    const std::wstring time=std::to_wstring(static_cast<int>(std::lround(game.bestTime*1000.0f)));
+    const std::wstring seed=std::to_wstring(game.bestSeed);
+    WritePrivateProfileStringW(L"Records",L"BestTimeMs",time.c_str(),game.settingsPath.c_str());
+    WritePrivateProfileStringW(L"Records",L"BestSeed",seed.c_str(),game.settingsPath.c_str());
+    WritePrivateProfileStringW(nullptr,nullptr,nullptr,game.settingsPath.c_str());
+}
+
+void collectBatteries(Game& game) {
+    bool changed=false;
+    for (BatteryPickup& pickup:game.batteryPickups) {
+        if (pickup.collected || game.batteryCharge>=99.0f) continue;
+        const float dx=game.x-pickup.x,dz=game.z-pickup.z;
+        if (dx*dx+dz*dz>0.52f*0.52f) continue;
+        const bool wasEmpty=game.batteryCharge<=0.0f;
+        pickup.collected=true;
+        game.batteryCharge=std::min(100.0f,game.batteryCharge+35.0f);
+        if (wasEmpty) { game.flashlightOn=true; game.nextFlicker=8.0f+randomUnit(game)*8.0f; }
+        playSound(game,L"battery_pickup.wav");
+        changed=true;
+    }
+    if (changed) uploadMazeGeometry(game);
+}
+
+void updateFlashlight(Game& game,float dt) {
+    game.flickerTimer=std::max(0.0f,game.flickerTimer-dt);
+    if (!game.flashlightOn || game.batteryCharge<=0.0f) return;
+    const float drainPerMinute=game.difficultyIndex==0?3.0f:(game.difficultyIndex==1?7.5f:14.0f);
+    game.batteryCharge=std::max(0.0f,game.batteryCharge-drainPerMinute*dt/60.0f);
+    if (game.batteryCharge<=0.0f) {
+        game.flashlightOn=false;
+        game.flickerTimer=0.0f;
+        playSound(game,L"flashlight_flicker.wav");
+        return;
+    }
+    game.nextFlicker-=dt;
+    if (game.nextFlicker<=0.0f) {
+        game.flickerTimer=0.42f+randomUnit(game)*0.22f;
+        float delay=game.difficultyIndex==0?35.0f:(game.difficultyIndex==1?24.0f:15.0f);
+        delay+=randomUnit(game)*(game.difficultyIndex==0?24.0f:(game.difficultyIndex==1?19.0f:12.0f));
+        if (game.batteryCharge<20.0f) delay*=0.42f;
+        game.nextFlicker=delay;
+        playSound(game,L"flashlight_flicker.wav");
+    }
+}
+
+void updateAtmosphere(Game& game,float dt) {
+    game.weatherTime+=dt;
+    if (game.weatherTime>7200.0f) game.weatherTime=std::fmod(game.weatherTime,7200.0f);
+    const float cloudWave=0.5f+0.48f*std::sin(game.weatherTime*0.026f-Pi*0.5f)
+                         +0.035f*std::sin(game.weatherTime*0.071f+0.8f);
+    game.cloudCoverage=std::clamp(cloudWave,0.04f,0.96f);
+    game.spatialAudio.enabled.store(game.soundEnabled,std::memory_order_relaxed);
+    if (!game.soundEnabled || !game.started || game.paused || game.won || game.showSettings) {
+        game.spatialAudio.cueVolume.store(0.0f,std::memory_order_relaxed);
+        return;
+    }
+    const float exitRadius=boundaryRadius(game,RingCount,ExitAngle)+0.45f;
+    const float dx=std::cos(ExitAngle)*exitRadius-game.x;
+    const float dz=std::sin(ExitAngle)*exitRadius-game.z;
+    const float distance=std::hypot(dx,dz);
+    const float pan=(std::sin(game.yaw)*dx-std::cos(game.yaw)*dz)/std::max(distance,0.001f);
+    game.spatialAudio.cuePan.store(pan,std::memory_order_relaxed);
+    const float attenuation=1.0f/(1.0f+0.035f*distance+0.0025f*distance*distance);
+    game.spatialAudio.cueVolume.store(0.24f*attenuation,std::memory_order_relaxed);
+}
+
 void restart(Game& game) {
     regenerateMaze(game);
     game.x=game.z=game.pitch=game.elapsed=0.0f;
@@ -846,6 +1064,7 @@ void restart(Game& game) {
     game.routeVisible=game.routeCooldown=0.0f;
     game.stepDistance=0.0f;
     game.bobPhase=game.movementBob=0.0f;
+    resetRunState(game);
     captureMouse(game,true);
     SetFocus(game.window);
 }
@@ -854,6 +1073,7 @@ void beginGame(Game& game) {
     game.started=true;
     game.paused=false;
     game.movementBob=0.0f;
+    resetRunState(game);
     playSound(game,L"menu.wav");
     captureMouse(game,true);
     SetFocus(game.window);
@@ -976,8 +1196,16 @@ void activateRoute(Game& game) {
     glBindVertexArray(game.routeVao); glBindBuffer(GL_ARRAY_BUFFER,game.routeVbo);
     glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(Vertex)),vertices.data(),GL_DYNAMIC_DRAW);
     game.routeVertexCount=static_cast<GLsizei>(vertices.size());
-    game.routeVisible=1.0f; game.routeCooldown=15.0f;
+    game.routeVisible=1.0f; game.routeCooldown=routeCooldownLength(game);
     playSound(game,L"route.wav");
+}
+
+void toggleFlashlight(Game& game) {
+    if (!game.started || game.paused || game.won) return;
+    if (game.flashlightOn) game.flashlightOn=false;
+    else if (game.batteryCharge>0.0f) game.flashlightOn=true;
+    game.flickerTimer=0.0f;
+    playSound(game,L"flashlight_switch.wav");
 }
 
 void saveSettings(const Game& game) {
@@ -989,6 +1217,9 @@ void saveSettings(const Game& game) {
     write(L"Video",L"Brightness",static_cast<int>(std::lround(game.brightness*100.0f)));
     write(L"Video",L"Contrast",static_cast<int>(std::lround(game.contrast*100.0f)));
     write(L"Audio",L"Sound",game.soundEnabled?1:0);
+    write(L"Game",L"Difficulty",game.difficultyIndex);
+    write(L"Controls",L"MouseSensitivity",static_cast<int>(std::lround(game.mouseSensitivity*100.0f)));
+    write(L"Controls",L"HeadBob",game.headBobEnabled?1:0);
     WritePrivateProfileStringW(nullptr,nullptr,nullptr,game.settingsPath.c_str());
 }
 
@@ -1035,7 +1266,13 @@ void adjustSetting(Game& game,int direction) {
         game.contrast=std::round(game.contrast*10.0f)/10.0f;
         break;
     case 3: game.soundEnabled=direction>0; break;
-    case 4: closeSettings(game); return;
+    case 4: game.difficultyIndex=(game.difficultyIndex+direction+3)%3; break;
+    case 5:
+        game.mouseSensitivity=std::clamp(game.mouseSensitivity+direction*0.1f,0.5f,2.0f);
+        game.mouseSensitivity=std::round(game.mouseSensitivity*10.0f)/10.0f;
+        break;
+    case 6: game.headBobEnabled=!game.headBobEnabled; break;
+    case 7: closeSettings(game); return;
     }
     saveSettings(game);
 }
@@ -1067,8 +1304,8 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             RAWINPUT input{};
             UINT size=sizeof(input);
             if (GetRawInputData(reinterpret_cast<HRAWINPUT>(lParam),RID_INPUT,&input,&size,sizeof(RAWINPUTHEADER))==size && input.header.dwType==RIM_TYPEMOUSE) {
-                game->yaw += input.data.mouse.lLastX*0.0025f;
-                game->pitch=std::clamp(game->pitch-input.data.mouse.lLastY*0.0025f,-1.35f,1.35f);
+                game->yaw += input.data.mouse.lLastX*0.0025f*game->mouseSensitivity;
+                game->pitch=std::clamp(game->pitch-input.data.mouse.lLastY*0.0025f*game->mouseSensitivity,-1.35f,1.35f);
             }
         }
         return 0;
@@ -1076,13 +1313,14 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
         if (!(lParam & (1LL<<30))) {
             if (game->showSettings) {
                 if (wParam==VK_ESCAPE) closeSettings(*game);
-                else if (wParam==VK_UP) game->settingsIndex=(game->settingsIndex+4)%5;
-                else if (wParam==VK_DOWN) game->settingsIndex=(game->settingsIndex+1)%5;
+                else if (wParam==VK_UP) game->settingsIndex=(game->settingsIndex+7)%8;
+                else if (wParam==VK_DOWN) game->settingsIndex=(game->settingsIndex+1)%8;
                 else if (wParam==VK_LEFT) adjustSetting(*game,-1);
                 else if (wParam==VK_RIGHT) adjustSetting(*game,1);
                 else if (wParam==VK_RETURN || wParam==VK_SPACE) {
                     if (game->settingsIndex==3) { game->soundEnabled=!game->soundEnabled; saveSettings(*game); }
-                    else if (game->settingsIndex==4) closeSettings(*game);
+                    else if (game->settingsIndex==6) { game->headBobEnabled=!game->headBobEnabled; saveSettings(*game); }
+                    else if (game->settingsIndex==7) closeSettings(*game);
                 }
             } else if (wParam==VK_ESCAPE) {
                 if (!game->started) DestroyWindow(window);
@@ -1093,6 +1331,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
             } else if (!game->started && (wParam==VK_RETURN || wParam==VK_SPACE)) {
                 beginGame(*game);
             } else if (wParam=='R' && game->won) restart(*game);
+            else if (wParam=='F') toggleFlashlight(*game);
             else if (wParam=='O') activateRoute(*game);
         }
         return 0;
@@ -1218,6 +1457,8 @@ in vec4 vLightPosition;
 uniform vec3 uEye;
 uniform vec3 uFlash;
 uniform vec3 uLightPos;
+uniform float uFlashIntensity;
+uniform float uMoonlight;
 uniform float uBrightness;
 uniform float uContrast;
 uniform sampler2D uGrass;
@@ -1303,12 +1544,13 @@ void main() {
     float attenuation=1.0/(1.0+0.055*distanceToLight+0.012*distanceToLight*distanceToLight);
     float shadow=vMaterial>3.5?1.0:shadowVisibility(normal,lightDirection);
     float contact=vMaterial>0.5 && vMaterial<1.5?mix(0.70,1.0,smoothstep(0.0,0.38,vWorld.y)):1.0;
-    vec3 moonFill=vMaterial<0.5?vec3(0.017,0.024,0.018):vec3(0.022,0.030,0.047);
+    vec3 moonFill=vMaterial<0.5?vec3(0.019,0.026,0.018):vec3(0.024,0.034,0.052);
+    moonFill*=mix(0.0,4.0,uMoonlight);
     moonFill*=contact*mix(0.58,1.0,ambientOcclusion);
     vec3 halfway=normalize(lightDirection+normalize(uEye-vWorld));
     float specular=pow(max(dot(normal,halfway),0.0),mix(96.0,5.0,roughness));
     vec3 specularColor=mix(vec3(0.10,0.095,0.075),vec3(0.24,0.28,0.34),1.0-roughness);
-    vec3 direct=vec3(1.0,0.91,0.78)*spot*attenuation*shadow;
+    vec3 direct=vec3(1.0,0.91,0.78)*spot*attenuation*shadow*uFlashIntensity;
     vec3 lit=albedo*(moonFill+direct*(0.14+1.12*diffuse))+specularColor*specular*direct*pow(1.0-roughness,2.0)*0.55+vColor*vEmission;
     float fog=smoothstep(14.0,27.0,distanceToEye);
     vec3 color=mix(lit,vec3(0.0015,0.003,0.009),fog);
@@ -1337,16 +1579,49 @@ in vec2 vUv;
 uniform sampler2D uSky;
 uniform float uBrightness;
 uniform float uContrast;
+uniform float uWeatherTime;
+uniform float uCloudCoverage;
+uniform float uMoonU;
+uniform float uMoonlight;
 out vec4 outColor;
 float hash(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float noise(vec2 p) {
+    vec2 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f);
+    return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),
+               mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);
+}
+float cloudNoise(vec2 p) {
+    float value=0.0,amplitude=0.52;
+    for (int octave=0;octave<4;++octave) {
+        value+=amplitude*noise(p);
+        p=p*2.03+vec2(19.17,7.31);
+        amplitude*=0.5;
+    }
+    return value;
+}
 void main() {
     vec3 sampled=texture(uSky,vUv).rgb;
     vec3 night=vec3(0.001,0.002,0.008)+sampled*0.025;
     vec2 grid=vUv*vec2(480.0,240.0), cell=floor(grid), local=fract(grid);
     float seed=hash(cell);
     float star=(step(0.9975,seed))*(1.0-smoothstep(0.035,0.10,length(local-vec2(hash(cell+1.3),hash(cell+5.7)))));
-    night+=vec3(0.24,0.30,0.48)*star;
+    float deltaU=abs(vUv.x-uMoonU); deltaU=min(deltaU,1.0-deltaU);
+    vec2 moonDelta=vec2(deltaU*1.25,vUv.y-0.755);
+    float moonDistance=length(moonDelta);
+    float moon=1.0-smoothstep(0.018,0.021,moonDistance);
+    float halo=exp(-moonDistance*82.0)*0.075;
+    vec2 cloudUv=vec2(vUv.x*9.0+uWeatherTime*0.0012,
+                      vUv.y*5.7+sin(vUv.x*8.0+uWeatherTime*0.0007)*0.07);
+    float density=cloudNoise(cloudUv);
+    float threshold=mix(0.78,0.40,uCloudCoverage);
+    float clouds=smoothstep(threshold,threshold+0.13,density)*smoothstep(0.38,0.55,vUv.y);
+    night+=vec3(0.22,0.28,0.43)*star*(1.0-clouds)*(1.0-0.65*uCloudCoverage);
+    float moonVisibility=1.0-max(clouds,1.0-uMoonlight);
+    night+=vec3(0.65,0.72,0.88)*(moon*moonVisibility+halo*moonVisibility);
+    vec3 cloudColor=mix(vec3(0.0025,0.0045,0.010),vec3(0.075,0.095,0.13),0.14+0.86*(1.0-uCloudCoverage));
+    night=mix(night,cloudColor,clouds*0.88);
     vec3 color=max((night-vec3(0.5))*uContrast+vec3(0.5),vec3(0.0))*uBrightness;
+    color=pow(max(color,vec3(0.0)),vec3(1.0/2.2));
     outColor=vec4(color,1.0);
 }
 )GLSL";
@@ -1623,6 +1898,8 @@ bool initializeRenderer(Game& game) {
     game.lightPosLoc=glGetUniformLocation(game.worldProgram,"uLightPos");
     game.brightnessLoc=glGetUniformLocation(game.worldProgram,"uBrightness");
     game.contrastLoc=glGetUniformLocation(game.worldProgram,"uContrast");
+    game.flashIntensityLoc=glGetUniformLocation(game.worldProgram,"uFlashIntensity");
+    game.moonlightLoc=glGetUniformLocation(game.worldProgram,"uMoonlight");
     game.shadowMatrixLoc=glGetUniformLocation(game.worldProgram,"uLightMatrix");
     game.shadowMapLoc=glGetUniformLocation(game.worldProgram,"uShadowMap");
 
@@ -1635,6 +1912,10 @@ bool initializeRenderer(Game& game) {
     game.skySamplerLoc=glGetUniformLocation(game.skyProgram,"uSky");
     game.skyBrightnessLoc=glGetUniformLocation(game.skyProgram,"uBrightness");
     game.skyContrastLoc=glGetUniformLocation(game.skyProgram,"uContrast");
+    game.skyWeatherLoc=glGetUniformLocation(game.skyProgram,"uWeatherTime");
+    game.skyCloudLoc=glGetUniformLocation(game.skyProgram,"uCloudCoverage");
+    game.skyMoonLoc=glGetUniformLocation(game.skyProgram,"uMoonU");
+    game.skyMoonlightLoc=glGetUniformLocation(game.skyProgram,"uMoonlight");
 
     wchar_t executable[MAX_PATH]{};
     GetModuleFileNameW(nullptr,executable,MAX_PATH);
@@ -1700,12 +1981,14 @@ void movePlayer(Game& game, float dt) {
     if (!game.started || game.paused || game.won) return;
     game.routeVisible=std::max(0.0f,game.routeVisible-dt);
     game.routeCooldown=std::max(0.0f,game.routeCooldown-dt);
+    game.elapsed+=dt;
+    updateFlashlight(game,dt);
     const float forward=(GetAsyncKeyState('W')<0?1.0f:0.0f)-(GetAsyncKeyState('S')<0?1.0f:0.0f);
     const float side=(GetAsyncKeyState('D')<0?1.0f:0.0f)-(GetAsyncKeyState('A')<0?1.0f:0.0f);
     if (forward==0.0f && side==0.0f) {
         game.stepDistance=0.0f;
         game.movementBob=std::max(0.0f,game.movementBob-dt*7.0f);
-        game.elapsed+=dt;
+        collectBatteries(game);
         return;
     }
     const float length=std::sqrt(forward*forward+side*side);
@@ -1732,7 +2015,7 @@ void movePlayer(Game& game, float dt) {
             playSound(game,game.alternateFootstep?L"step2.wav":L"step1.wav");
         game.alternateFootstep=!game.alternateFootstep;
     }
-    game.elapsed+=dt;
+    collectBatteries(game);
 
     const float radius=std::hypot(game.x,game.z);
     const float angle=std::atan2(game.z,game.x);
@@ -1740,6 +2023,13 @@ void movePlayer(Game& game, float dt) {
     const float exitRadius=boundaryRadius(game,RingCount,ExitAngle);
     if (radius>=exitRadius+0.10f && std::abs(delta)*exitRadius<=DoorHalfWidth+0.45f) {
         game.won=true;
+        game.completedSeed=game.runSeed;
+        if (game.bestTime<=0.0f || game.elapsed<game.bestTime) {
+            game.bestTime=game.elapsed;
+            game.bestSeed=game.completedSeed;
+            game.newRecord=true;
+            saveRunRecord(game);
+        }
         regenerateMaze(game);
         captureMouse(game,false);
         playSound(game,L"escape.wav");
@@ -1810,48 +2100,62 @@ void renderUi(Game& game) {
     if (game.showSettings) {
         const float cx=w*0.5f, cy=h*0.5f;
         uiRect(vertices,w,h,0,0,static_cast<float>(w),static_cast<float>(h),{0.002f,0.006f,0.010f,0.84f});
-        uiRect(vertices,w,h,cx-300,cy-235,600,470,{0.012f,0.025f,0.030f,0.98f});
-        uiRect(vertices,w,h,cx-300,cy-235,600,5,{0.25f,0.88f,0.67f,1.0f});
+        uiRect(vertices,w,h,cx-300,cy-285,600,570,{0.012f,0.025f,0.030f,0.98f});
+        uiRect(vertices,w,h,cx-300,cy-285,600,5,{0.25f,0.88f,0.67f,1.0f});
         centeredText(vertices,w,h,"SETTINGS",cy-195,3.0f,green);
         constexpr int widths[]={960,1280,1600}, heights[]={600,800,900};
         const std::string resolution=game.resolutionIndex==3?"FULLSCREEN":
             std::to_string(widths[game.resolutionIndex])+"X"+std::to_string(heights[game.resolutionIndex]);
-        const std::array<std::string,6> rows={
+        const char* difficultyNames[]={"EASY","NORMAL","HARD"};
+        const std::array<std::string,8> rows={
             "RESOLUTION "+resolution,
             "BRIGHTNESS "+std::to_string(static_cast<int>(std::lround(game.brightness*100.0f))),
             "CONTRAST "+std::to_string(static_cast<int>(std::lround(game.contrast*100.0f))),
             std::string("SOUND ")+(game.soundEnabled?"ON":"OFF"),
+            std::string("DIFFICULTY ")+difficultyNames[game.difficultyIndex],
+            "MOUSE SENS "+std::to_string(static_cast<int>(std::lround(game.mouseSensitivity*100.0f))),
+            std::string("HEAD BOB ")+(game.headBobEnabled?"ON":"OFF"),
             "BACK"
         };
         for (int i=0;i<static_cast<int>(rows.size());++i) {
-            const float y=cy-132+i*46.0f;
-            if (i==game.settingsIndex) uiRect(vertices,w,h,cx-250,y-8,500,34,{0.08f,0.32f,0.28f,0.95f});
+            const float y=cy-166+i*38.0f;
+            if (i==game.settingsIndex) uiRect(vertices,w,h,cx-265,y-6,530,31,{0.08f,0.32f,0.28f,0.95f});
             centeredText(vertices,w,h,rows[i],y,1.55f,i==game.settingsIndex?green:white);
         }
-        centeredText(vertices,w,h,"UP DOWN SELECT",cy+165,1.25f,white);
-        centeredText(vertices,w,h,"LEFT RIGHT ADJUST",cy+190,1.25f,cyan);
-        centeredText(vertices,w,h,"ESC BACK",cy+215,1.1f,white);
+        centeredText(vertices,w,h,"UP DOWN SELECT",cy+155,1.25f,white);
+        centeredText(vertices,w,h,"LEFT RIGHT ADJUST",cy+180,1.25f,cyan);
+        centeredText(vertices,w,h,"ESC BACK",cy+207,1.1f,white);
     } else if (!game.started) {
         const float cx=w*0.5f, cy=h*0.5f;
         uiRect(vertices,w,h,0,0,static_cast<float>(w),static_cast<float>(h),{0.002f,0.006f,0.010f,0.78f});
-        uiRect(vertices,w,h,cx-300,cy-230,600,460,{0.012f,0.025f,0.030f,0.97f});
-        uiRect(vertices,w,h,cx-300,cy-230,600,5,{0.25f,0.88f,0.67f,1.0f});
-        centeredText(vertices,w,h,"MAZE ESCAPE",cy-165,4.0f,green);
-        centeredText(vertices,w,h,"FIND THE EXIT",cy-92,2.0f,white);
-        centeredText(vertices,w,h,"WASD MOVE",cy-32,1.7f,white);
-        centeredText(vertices,w,h,"MOUSE LOOK",cy+8,1.7f,white);
-        centeredText(vertices,w,h,"SHIFT SPRINT",cy+48,1.7f,white);
-        centeredText(vertices,w,h,"O SHOW ROUTE",cy+80,1.35f,cyan);
-        uiRect(vertices,w,h,cx-190,cy+105,380,56,{0.08f,0.32f,0.28f,1.0f});
-        centeredText(vertices,w,h,"ENTER OR CLICK TO START",cy+124,1.3f,green);
-        centeredText(vertices,w,h,"S SETTINGS",cy+172,1.15f,cyan);
-        centeredText(vertices,w,h,"ESC TO CLOSE",cy+196,1.0f,cyan);
+        uiRect(vertices,w,h,cx-300,cy-275,600,550,{0.012f,0.025f,0.030f,0.97f});
+        uiRect(vertices,w,h,cx-300,cy-275,600,5,{0.25f,0.88f,0.67f,1.0f});
+        centeredText(vertices,w,h,"MAZE ESCAPE",cy-222,4.0f,green);
+        centeredText(vertices,w,h,"FIND THE EXIT",cy-162,2.0f,white);
+        centeredText(vertices,w,h,"WASD MOVE",cy-111,1.45f,white);
+        centeredText(vertices,w,h,"MOUSE LOOK",cy-84,1.45f,white);
+        centeredText(vertices,w,h,"SHIFT SPRINT",cy-57,1.45f,white);
+        centeredText(vertices,w,h,"F FLASHLIGHT",cy-30,1.45f,white);
+        centeredText(vertices,w,h,"O SHOW ROUTE",cy-3,1.3f,cyan);
+        centeredText(vertices,w,h,"SEED "+std::to_string(game.mazeSeed),cy+34,1.15f,cyan);
+        if (game.bestTime>0.0f) {
+            char record[32]{}; formatTime(game.bestTime,record);
+            centeredText(vertices,w,h,std::string("BEST ")+record,cy+50,1.1f,green);
+            centeredText(vertices,w,h,"BEST SEED "+std::to_string(game.bestSeed),cy+68,1.0f,green);
+        } else centeredText(vertices,w,h,"NO RECORD YET",cy+56,1.15f,white);
+        uiRect(vertices,w,h,cx-190,cy+84,380,53,{0.08f,0.32f,0.28f,1.0f});
+        centeredText(vertices,w,h,"ENTER OR CLICK TO START",cy+102,1.25f,green);
+        centeredText(vertices,w,h,"S SETTINGS",cy+158,1.15f,cyan);
+        centeredText(vertices,w,h,"ESC TO CLOSE",cy+183,1.0f,cyan);
+        centeredText(vertices,w,h,"REPLAY: MAZEESCAPE EXE --SEED N",cy+215,0.95f,white);
     } else if (game.won) {
-        uiRect(vertices,w,h,w*0.5f-220,h*0.5f-110,440,220,{0.004f,0.012f,0.018f,0.92f});
-        centeredText(vertices,w,h,"YOU ESCAPED!",h*0.5f-60,4.0f,green);
+        uiRect(vertices,w,h,w*0.5f-310,h*0.5f-152,620,304,{0.004f,0.012f,0.018f,0.92f});
+        centeredText(vertices,w,h,"YOU ESCAPED!",h*0.5f-126,3.6f,green);
         char timeText[32]{}; formatTime(game.elapsed,timeText);
-        centeredText(vertices,w,h,std::string("TIME ")+timeText,h*0.5f+4,2.0f,white);
-        centeredText(vertices,w,h,"R TO RESTART",h*0.5f+55,1.6f,cyan);
+        centeredText(vertices,w,h,std::string("TIME ")+timeText,h*0.5f-73,1.8f,white);
+        centeredText(vertices,w,h,"SEED "+std::to_string(game.completedSeed),h*0.5f-39,1.25f,cyan);
+        if (game.newRecord) centeredText(vertices,w,h,"NEW PERSONAL BEST",h*0.5f-10,1.45f,green);
+        centeredText(vertices,w,h,"R TO RESTART",h*0.5f+54,1.5f,cyan);
     } else if (game.paused) {
         uiRect(vertices,w,h,0,0,static_cast<float>(w),static_cast<float>(h),{0.002f,0.006f,0.010f,0.72f});
         centeredText(vertices,w,h,"PAUSED",h*0.5f-48,4.0f,white);
@@ -1859,13 +2163,20 @@ void renderUi(Game& game) {
         centeredText(vertices,w,h,"S SETTINGS",h*0.5f+46,1.5f,cyan);
         centeredText(vertices,w,h,"ESC TO TITLE",h*0.5f+78,1.35f,white);
     } else {
-        uiRect(vertices,w,h,16,16,208,143,{0.004f,0.010f,0.016f,0.72f});
+        uiRect(vertices,w,h,16,16,248,190,{0.004f,0.010f,0.016f,0.74f});
         uiText(vertices,w,h,"MAZE ESCAPE",28,26,1.7f,cyan);
         char timeText[32]{}; formatTime(game.elapsed,timeText);
         uiText(vertices,w,h,std::string("TIME ")+timeText,28,47,1.7f,white);
         uiText(vertices,w,h,"WASD MOVE",28,73,1.25f,white);
         uiText(vertices,w,h,"MOUSE LOOK",28,92,1.25f,white);
         uiText(vertices,w,h,"SHIFT SPRINT",28,109,1.25f,white);
+        uiText(vertices,w,h,game.flashlightOn?"F LIGHT ON":"F LIGHT OFF",28,127,1.25f,game.flashlightOn?green:white);
+        char batteryText[32]{};
+        wsprintfA(batteryText,"BATTERY %03d",static_cast<int>(std::ceil(game.batteryCharge)));
+        uiText(vertices,w,h,batteryText,28,146,1.2f,game.batteryCharge>20.0f?green:white);
+        uiRect(vertices,w,h,28,166,170,7,{0.12f,0.16f,0.17f,1.0f});
+        uiRect(vertices,w,h,28,166,170.0f*std::clamp(game.batteryCharge/100.0f,0.0f,1.0f),7,
+               game.batteryCharge>20.0f?std::array<float,4>{0.15f,0.86f,0.55f,1.0f}:std::array<float,4>{0.95f,0.36f,0.18f,1.0f});
         const float skillX=std::max(12.0f,w-174.0f), skillY=static_cast<float>(h)-68.0f;
         uiRect(vertices,w,h,skillX,skillY,162,52,{0.004f,0.010f,0.016f,0.78f});
         uiText(vertices,w,h,"ROUTE",skillX+12,skillY+8,1.15f,cyan);
@@ -1907,7 +2218,7 @@ void drawModel(Game& game,const ModelObject& object,const std::array<float,16>& 
 }
 
 void render(Game& game) {
-    const float bob=std::sin(game.bobPhase*2.0f)*0.025f*game.movementBob;
+    const float bob=game.headBobEnabled?std::sin(game.bobPhase*2.0f)*0.025f*game.movementBob:0.0f;
     Vec3 eye{game.x,1.38f+bob,game.z};
     const float cp=std::cos(game.pitch);
     const Vec3 flash{std::cos(game.yaw)*cp,std::sin(game.pitch),std::sin(game.yaw)*cp};
@@ -1950,6 +2261,8 @@ void render(Game& game) {
     glClearColor(0.004f,0.007f,0.012f,1.0f);
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
+    const float cloudPhase=std::clamp((game.cloudCoverage-0.25f)/0.71f,0.0f,1.0f);
+    const float moonlight=1.0f-cloudPhase*cloudPhase*(3.0f-2.0f*cloudPhase);
     glDisable(GL_DEPTH_TEST);
     glUseProgram(game.skyProgram);
     glUniformMatrix4fv(game.skyViewLoc,1,GL_FALSE,view.data());
@@ -1957,6 +2270,10 @@ void render(Game& game) {
     glUniform3f(game.skyEyeLoc,eye.x,eye.y,eye.z);
     glUniform1f(game.skyBrightnessLoc,game.brightness);
     glUniform1f(game.skyContrastLoc,game.contrast);
+    glUniform1f(game.skyWeatherLoc,game.weatherTime);
+    glUniform1f(game.skyCloudLoc,game.cloudCoverage);
+    glUniform1f(game.skyMoonLoc,std::fmod(0.72f+game.weatherTime*0.000035f,1.0f));
+    glUniform1f(game.skyMoonlightLoc,moonlight);
     glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D,game.skyTexture);
     glBindVertexArray(game.skyVao);
     glDrawArrays(GL_TRIANGLES,0,game.skyVertexCount);
@@ -1971,6 +2288,14 @@ void render(Game& game) {
     glUniform3f(game.lightPosLoc,lightPos.x,lightPos.y,lightPos.z);
     glUniform1f(game.brightnessLoc,game.brightness);
     glUniform1f(game.contrastLoc,game.contrast);
+    float flickerIntensity=1.0f;
+    if (game.flickerTimer>0.0f) {
+        const float phase=std::fmod(game.flickerTimer,0.12f)/0.12f;
+        flickerIntensity=phase<0.45f?0.018f:(phase<0.70f?0.34f:0.90f);
+    }
+    const float flashIntensity=game.flashlightOn && game.batteryCharge>0.0f?flickerIntensity:0.0f;
+    glUniform1f(game.moonlightLoc,moonlight);
+    glUniform1f(game.flashIntensityLoc,flashIntensity);
     glUniformMatrix4fv(game.shadowMatrixLoc,1,GL_FALSE,lightMatrix.data());
     glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,game.grassTexture);
     glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D,game.stoneTexture);
@@ -1995,6 +2320,21 @@ void render(Game& game) {
     SwapBuffers(game.dc);
 }
 
+void readSeedArgument(Game& game) {
+    const std::wstring command=GetCommandLineW();
+    const size_t option=command.find(L"--seed");
+    if (option==std::wstring::npos) return;
+    size_t value=option+6;
+    if (value<command.size() && command[value]!=L'=' && !std::iswspace(command[value])) return;
+    if (value<command.size() && command[value]==L'=') ++value;
+    while (value<command.size() && std::iswspace(command[value])) ++value;
+    wchar_t* end=nullptr;
+    const unsigned long parsed=std::wcstoul(command.c_str()+value,&end,10);
+    if (end==command.c_str()+value || parsed>std::numeric_limits<uint32_t>::max()) return;
+    game.requestedSeed=static_cast<uint32_t>(parsed);
+    game.hasRequestedSeed=true;
+}
+
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     Gdiplus::GdiplusStartupInput gdiplusInput;
     ULONG_PTR gdiplusToken=0;
@@ -2003,6 +2343,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
         return 1;
     }
     Game game;
+    readSeedArgument(game);
     if (!loadMap(game)) {
         MessageBoxW(nullptr,L"Could not generate the maze layout.",L"Maze Escape",MB_OK|MB_ICONERROR);
         Gdiplus::GdiplusShutdown(gdiplusToken);
@@ -2018,6 +2359,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
         Gdiplus::GdiplusShutdown(gdiplusToken);
         return 1;
     }
+    game.spatialAudio.start();
     using Clock=std::chrono::steady_clock;
     auto previous=Clock::now();
     MSG message{};
@@ -2030,9 +2372,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
         const auto now=Clock::now();
         const float dt=std::min(std::chrono::duration<float>(now-previous).count(),0.05f);
         previous=now;
+        updateAtmosphere(game,dt);
         movePlayer(game,dt);
         render(game);
     }
+    game.spatialAudio.stop();
+    PlaySoundW(nullptr,nullptr,0);
     captureMouse(game,false);
     if (wglGetCurrentContext()==game.gl) wglMakeCurrent(nullptr,nullptr);
     if (game.gl) wglDeleteContext(game.gl);
