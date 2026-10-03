@@ -1,3 +1,5 @@
+// Maze Escape is a small, self-contained Win32/OpenGL game. This file holds
+// the game state, maze generation, rendering, input, audio, and save handling.
 #include <windows.h>
 #include <objidl.h>
 #include <GL/gl.h>
@@ -72,6 +74,11 @@
 #ifndef GL_BGRA
 #define GL_BGRA 0x80E1
 #endif
+#ifndef GL_TEXTURE_COMPARE_MODE
+#define GL_TEXTURE_COMPARE_MODE 0x884C
+#define GL_TEXTURE_COMPARE_FUNC 0x884D
+#define GL_COMPARE_REF_TO_TEXTURE 0x884E
+#endif
 
 using GLchar = char;
 using GLsizeiptr = std::ptrdiff_t;
@@ -139,15 +146,16 @@ BindFramebuffer glBindFramebuffer;
 FramebufferTexture2D glFramebufferTexture2D;
 CheckFramebufferStatus glCheckFramebufferStatus;
 
-constexpr int MapSize = 560;
-constexpr float Cell = 0.0625f;
-constexpr float HalfMaze = MapSize * Cell * 0.5f;
+constexpr int MapSize = 560; // Fixed collision-grid width and height, in cells.
+constexpr float Cell = 0.0625f; // World-space width of each fine collision cell.
+constexpr float HalfMaze = MapSize * Cell * 0.5f; // Half-width used to convert map cells to world positions.
 constexpr float Pi = 3.14159265f;
 constexpr float ExitAngle = 95.625f * Pi / 180.0f; // Center of the 32-sector outer ring.
-constexpr int RingCount = 6;
+constexpr int RingCount = 6; // Number of maze bands outside the circular starting chamber.
 constexpr float CenterRadius = 2.75f, RadialStep = 2.05f;
 constexpr float WallHalfThickness = 0.10f, DoorHalfWidth = 0.90f;
 
+// Return how many walkable room sectors belong to a given circular band.
 int sectorsForRing(int ring) {
     // Doubling ring counts keeps each child doorway away from parent wall spokes.
     if (ring == 0) return 1;
@@ -184,6 +192,7 @@ struct PastRun {
 };
 struct ModelPart { GLsizei first = 0, count = 0; GLuint texture = 0; std::string material; };
 struct ModelObject { GLuint vao = 0, vbo = 0; std::vector<ModelPart> parts; bool loaded = false; };
+// Curved wall segment data is converted into static GPU geometry once per maze.
 struct WallArc {
     int boundary;
     float startAngle, endAngle;
@@ -194,7 +203,14 @@ struct WallArc {
     float crumbleEndLength = 0.0f, crumbleEndHeight = 0.0f;
 };
 struct RadialWall { float angle, startRadius, endRadius; bool capStart, capEnd; };
+// One logical room in the polar maze graph; links are open passages to neighboring rooms.
+struct MazeNode {
+    int ring=0, sector=0;
+    float x=0.0f, z=0.0f;
+    std::vector<int> links;
+};
 
+// Generates quiet wind and distance-panned exit/omen sounds on WinMM's audio thread.
 struct SpatialAudio {
     static constexpr int SampleRate=44100, FramesPerBuffer=1024, BufferCount=4;
     struct Buffer { WAVEHDR header{}; std::array<int16_t,FramesPerBuffer*2> samples{}; };
@@ -208,6 +224,7 @@ struct SpatialAudio {
     float bellEnvelope=0.0f,bellCountdown=18.0f;
     double cuePhase=0.0,windPhase=0.0,bellPhase=0.0;
 
+    // WinMM calls this when a sample buffer has finished playing; refill and queue it again.
     static void CALLBACK callback(HWAVEOUT,UINT message,DWORD_PTR instance,DWORD_PTR parameter,DWORD_PTR) {
         if (message!=WOM_DONE || !instance) return;
         auto* audio=reinterpret_cast<SpatialAudio*>(instance);
@@ -215,6 +232,7 @@ struct SpatialAudio {
             audio->submit(reinterpret_cast<WAVEHDR*>(parameter));
     }
 
+    // Mix one short stereo block without allocating memory on the real-time audio thread.
     void fill(Buffer& buffer) {
         const bool play=enabled.load(std::memory_order_relaxed);
         const float pan=std::clamp(cuePan.load(std::memory_order_relaxed),-1.0f,1.0f);
@@ -257,6 +275,7 @@ struct SpatialAudio {
         }
     }
 
+    // Convert a finished WinMM header back to its owning sample buffer and restart playback.
     void submit(WAVEHDR* header) {
         if (!active.load(std::memory_order_relaxed) || !device || !header) return;
         auto* buffer=reinterpret_cast<Buffer*>(reinterpret_cast<char*>(header)-offsetof(Buffer,header));
@@ -264,6 +283,7 @@ struct SpatialAudio {
         if (active.load(std::memory_order_relaxed)) waveOutWrite(device,header,sizeof(WAVEHDR));
     }
 
+    // Opens the audio device, prepares the fixed buffers, and starts continuous playback.
     bool start() {
         WAVEFORMATEX format{};
         format.wFormatTag=WAVE_FORMAT_PCM; format.nChannels=2; format.nSamplesPerSec=SampleRate;
@@ -280,6 +300,7 @@ struct SpatialAudio {
         return true;
     }
 
+    // Stop callbacks before releasing the prepared buffers and audio device.
     void stop() {
         active.store(false,std::memory_order_relaxed);
         if (!device) return;
@@ -291,6 +312,7 @@ struct SpatialAudio {
     }
 };
 
+// Central state shared by the window loop, maze simulation, save files, and renderer.
 struct Game {
     HWND window = nullptr;
     HDC dc = nullptr;
@@ -301,11 +323,14 @@ struct Game {
     std::vector<RadialWall> radialWalls;
     std::vector<BatteryPickup> batteryPickups;
     std::vector<RuinTrace> ruinTraces;
+    std::vector<MazeNode> mazeNodes;
     std::vector<PastRun> pastRuns;
     std::vector<TrailPoint> previousTrail,currentTrail;
+    std::vector<UiVertex> uiVertices; // Reuse capacity to avoid rebuilding the HUD's heap buffer each frame.
     float mazePhaseA = 0.0f, mazePhaseB = 0.0f;
     uint32_t mazeSeed=0, runSeed=0, requestedSeed=0, completedSeed=0, bestSeed=0, runtimeRandom=1;
     uint32_t previousTrailSeed=0;
+    int mazeExitNode=0;
     RunOmen runOmen=RunOmen::None;
     bool hasRequestedSeed=false, newRecord=false, flashlightOn=true, headBobEnabled=true;
     std::filesystem::path executableDirectory;
@@ -313,6 +338,7 @@ struct Game {
     std::filesystem::path pastRunsPath;
     std::filesystem::path trailPath;
     GLsizei worldVertexCount = 0;
+    GLsizei findVertexCount = 0;
     GLsizei skyVertexCount = 0;
     GLsizei routeVertexCount = 0;
     float routeVisible = 0.0f, routeCooldown = 0.0f;
@@ -334,7 +360,9 @@ struct Game {
     SpatialAudio spatialAudio;
     GLuint worldProgram = 0, skyProgram = 0, uiProgram = 0;
     GLuint shadowProgram = 0, shadowFramebuffer = 0, shadowTexture = 0;
-    GLuint worldVao = 0, worldVbo = 0, routeVao = 0, routeVbo = 0;
+    GLuint worldVao = 0, worldVbo = 0;
+    GLuint findVao = 0, findVbo = 0;
+    GLuint routeVao = 0, routeVbo = 0;
     GLuint skyVao = 0, skyVbo = 0, uiVao = 0, uiVbo = 0;
     ModelObject flashlight;
     std::unordered_map<std::wstring,GLuint> flashlightTextures;
@@ -351,6 +379,7 @@ struct Game {
     GLint skyBrightnessLoc = -1, skyContrastLoc = -1;
 };
 
+// Play a bundled one-shot sound asynchronously; sound files live beside the executable.
 void playSound(const Game& game, const wchar_t* filename) {
     if (!game.soundEnabled) return;
     const auto path=game.executableDirectory/L"assets"/L"sounds"/filename;
@@ -358,6 +387,7 @@ void playSound(const Game& game, const wchar_t* filename) {
 }
 
 template<class T>
+// Resolve modern OpenGL functions from the active WGL context.
 bool loadProc(T& target, const char* name) {
     PROC proc = wglGetProcAddress(name);
     if (!proc || proc == reinterpret_cast<PROC>(1) || proc == reinterpret_cast<PROC>(2) ||
@@ -369,6 +399,7 @@ bool loadProc(T& target, const char* name) {
     return target != nullptr;
 }
 
+// Load every modern OpenGL entry point used by this renderer.
 bool loadGl() {
 #define LOAD_GL(name) if (!loadProc(gl##name, "gl" #name)) return false
     LOAD_GL(CreateShader); LOAD_GL(ShaderSource); LOAD_GL(CompileShader);
@@ -385,6 +416,7 @@ bool loadGl() {
     return true;
 }
 
+// Add a few smooth sine waves to each ring radius for a varied, still mostly circular maze.
 float boundaryRadius(const Game& game, int boundary, float angle) {
     const float base=CenterRadius+RadialStep*boundary;
     if (boundary==0) return base;
@@ -394,6 +426,7 @@ float boundaryRadius(const Game& game, int boundary, float angle) {
     return base+0.82f*progress*shape;
 }
 
+// Multiply column-major 4x4 matrices, matching OpenGL's matrix convention.
 std::array<float,16> multiplyMatrix(const std::array<float,16>& a,const std::array<float,16>& b) {
     std::array<float,16> result{};
     for (int column=0;column<4;++column) for (int row=0;row<4;++row)
@@ -402,6 +435,7 @@ std::array<float,16> multiplyMatrix(const std::array<float,16>& a,const std::arr
     return result;
 }
 
+// Compile one GLSL shader and show its compiler output if the source is invalid.
 GLuint compileShader(GLenum kind, const char* source) {
     GLuint shader = glCreateShader(kind);
     glShaderSource(shader, 1, &source, nullptr);
@@ -418,6 +452,7 @@ GLuint compileShader(GLenum kind, const char* source) {
     return shader;
 }
 
+// Compile and link a vertex/fragment shader pair into a GPU program.
 GLuint makeProgram(const char* vertexSource, const char* fragmentSource) {
     GLuint vertex = compileShader(GL_VERTEX_SHADER, vertexSource);
     GLuint fragment = compileShader(GL_FRAGMENT_SHADER, fragmentSource);
@@ -440,15 +475,19 @@ GLuint makeProgram(const char* vertexSource, const char* fragmentSource) {
     return program;
 }
 
+// Small vector helpers used for camera, lighting, and generated mesh normals.
 Vec3 normalize(Vec3 v) {
     const float n = std::sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
     return n > 0.0f ? Vec3{v.x/n, v.y/n, v.z/n} : Vec3{};
 }
+// Return the scalar product, used for angles and face orientation.
 float dot(Vec3 a, Vec3 b) { return a.x*b.x + a.y*b.y + a.z*b.z; }
+// Return the perpendicular vector, used for normals and camera axes.
 Vec3 cross(Vec3 a, Vec3 b) {
     return {a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x};
 }
 
+// Build the perspective projection matrix for the world and flashlight cameras.
 std::array<float, 16> perspective(float fov, float aspect, float nearPlane, float farPlane) {
     const float f = 1.0f / std::tan(fov * 0.5f);
     std::array<float, 16> m{};
@@ -459,6 +498,7 @@ std::array<float, 16> perspective(float fov, float aspect, float nearPlane, floa
     return m;
 }
 
+// Turn camera position and yaw/pitch into the view matrix OpenGL uses to draw the scene.
 std::array<float, 16> viewMatrix(Vec3 eye, float yaw, float pitch) {
     const float cp = std::cos(pitch);
     const Vec3 forward = normalize({std::cos(yaw)*cp, std::sin(pitch), std::sin(yaw)*cp});
@@ -472,6 +512,7 @@ std::array<float, 16> viewMatrix(Vec3 eye, float yaw, float pitch) {
     return m;
 }
 
+// Add two triangles for a textured rectangular face, correcting winding for its normal.
 void addQuad(std::vector<Vertex>& out, Vec3 a, Vec3 b, Vec3 c, Vec3 d, Vec3 normal,
              float r, float g, float blue, float emission = 0.0f, float material = 1.0f) {
     const Vec3 edge1{b.x-a.x,b.y-a.y,b.z-a.z};
@@ -496,6 +537,7 @@ void addQuad(std::vector<Vertex>& out, Vec3 a, Vec3 b, Vec3 c, Vec3 d, Vec3 norm
     out.insert(out.end(), {v[0],v[1],v[2],v[0],v[2],v[3]});
 }
 
+// Like addQuad, but preserve caller-supplied texture coordinates for curved wall pieces.
 void addQuadWithUV(std::vector<Vertex>& out, std::array<Vec3,4> points,
                    std::array<std::array<float,2>,4> uv, Vec3 normal,
                    float r, float g, float b) {
@@ -512,6 +554,7 @@ void addQuadWithUV(std::vector<Vertex>& out, std::array<Vec3,4> points,
     out.insert(out.end(),{v[0],v[1],v[2],v[0],v[2],v[3]});
 }
 
+// Add one correctly-facing textured triangle for the jagged rubble mesh.
 void addStoneTriangle(std::vector<Vertex>& out,Vec3 a,Vec3 b,Vec3 c,Vec3 expectedNormal,
                       float r,float g,float blue) {
     Vec3 normal=normalize(cross({b.x-a.x,b.y-a.y,b.z-a.z},{c.x-a.x,c.y-a.y,c.z-a.z}));
@@ -521,6 +564,7 @@ void addStoneTriangle(std::vector<Vertex>& out,Vec3 a,Vec3 b,Vec3 c,Vec3 expecte
         out.push_back({p.x,p.y,p.z,normal.x,normal.y,normal.z,r,g,blue,0.0f,p.x*0.72f,p.y*0.72f,1.0f});
 }
 
+// Create a low-poly broken stone chunk from layered polygon rings.
 void addRubbleChunk(std::vector<Vertex>& out,Vec3 center,float yaw,float radiusX,float radiusZ,float height) {
     constexpr int sides=5;
     std::array<Vec3,sides> bottom{},middle{},upper{};
@@ -547,6 +591,7 @@ void addRubbleChunk(std::vector<Vertex>& out,Vec3 center,float yaw,float radiusX
     }
 }
 
+// Append all six faces of an axis-aligned box to a mesh.
 void addBox(std::vector<Vertex>& out, float x0, float x1, float y0, float y1,
             float z0, float z1, float r, float g, float b, float emission, float material = 1.0f) {
     addQuad(out,{x0,y1,z0},{x1,y1,z0},{x1,y1,z1},{x0,y1,z1},{0,1,0},r,g,b,emission,material);
@@ -557,6 +602,9 @@ void addBox(std::vector<Vertex>& out, float x0, float x1, float y0, float y1,
     addQuad(out,{x0,y0,z0},{x0,y1,z0},{x0,y1,z1},{x0,y0,z1},{-1,0,0},r,g,b,emission,material);
 }
 
+std::vector<Vertex> buildEchoGeometry(const Game& game);
+
+// Tessellate the floor, curved stone walls, fixed rubble, exit frame, and old footprints.
 std::vector<Vertex> buildMaze(const Game& game) {
     std::vector<Vertex> out;
     out.reserve(160000);
@@ -700,6 +748,21 @@ std::vector<Vertex> buildMaze(const Game& game) {
                     atSide(wall.endRadius,half,wallHeight),atSide(wall.endRadius,-half,wallHeight),
                     direction,r,g,b);
     }
+    const float gateRadius=boundaryRadius(game,RingCount,ExitAngle)+0.30f;
+    const float gateX=std::cos(ExitAngle)*gateRadius, gateZ=std::sin(ExitAngle)*gateRadius;
+    addBox(out,gateX-1.08f,gateX-0.95f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
+    addBox(out,gateX+0.95f,gateX+1.08f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
+    addBox(out,gateX-1.08f,gateX+1.08f,1.72f,1.88f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
+    const auto echoVertices=buildEchoGeometry(game);
+    out.insert(out.end(),echoVertices.begin(),echoVertices.end());
+    return out;
+}
+
+// Builds only the small items that can disappear as a player collects them.
+// Keeping them separate prevents a pickup from rebuilding and re-uploading all walls.
+std::vector<Vertex> buildFindGeometry(const Game& game) {
+    std::vector<Vertex> out;
+    out.reserve(4096);
     for (const BatteryPickup& pickup:game.batteryPickups) if (!pickup.collected) {
         addBox(out,pickup.x-0.12f,pickup.x+0.12f,0.045f,0.19f,pickup.z-0.07f,pickup.z+0.07f,
                0.24f,0.28f,0.30f,0.0f,1.0f);
@@ -728,25 +791,37 @@ std::vector<Vertex> buildMaze(const Game& game) {
                    0.25f,0.21f,0.15f,0.0f,1.0f);
         }
     }
+    return out;
+}
+
+// Projects the last run onto safe floor tiles once for each newly generated maze.
+std::vector<Vertex> buildEchoGeometry(const Game& game) {
+    std::vector<Vertex> out;
+    out.reserve(game.previousTrail.size()*12);
     if (!game.previousTrail.empty() && game.previousTrailSeed!=game.mazeSeed) {
         Vec3 lastMark{};
         bool haveLastMark=false;
-        for (size_t i=0;i<game.previousTrail.size();++i) {
-            const TrailPoint& point=game.previousTrail[i];
-            const int sourceCol=std::clamp(static_cast<int>(std::floor((HalfMaze-point.x)/Cell)),0,MapSize-1);
-            const int sourceRow=std::clamp(static_cast<int>(std::floor((HalfMaze-point.z)/Cell)),0,MapSize-1);
+        for (const TrailPoint& point:game.previousTrail) {
+            const int sourceCol=std::clamp(static_cast<int>((HalfMaze-point.x)/Cell),0,MapSize-1);
+            const int sourceRow=std::clamp(static_cast<int>((HalfMaze-point.z)/Cell),0,MapSize-1);
             int bestCol=-1,bestRow=-1;
             float bestDistance=1.0f;
-            for (int row=std::max(0,sourceRow-18);row<=std::min(MapSize-1,sourceRow+18);++row)
-                for (int col=std::max(0,sourceCol-18);col<=std::min(MapSize-1,sourceCol+18);++col) {
+            for (int row=std::max(0,sourceRow-18);row<=std::min(MapSize-1,sourceRow+18);++row) {
+                const float z=HalfMaze-(row+0.5f)*Cell;
+                const float dz=z-point.z;
+                const float remaining=bestDistance-dz*dz;
+                if (remaining<=0.0f) continue;
+                const int columnRadius=static_cast<int>(std::ceil(std::sqrt(remaining)/Cell))+1;
+                for (int col=std::max(0,sourceCol-columnRadius);col<=std::min(MapSize-1,sourceCol+columnRadius);++col) {
                     if (game.map[row][col]!='.') continue;
-                    const float x=HalfMaze-(col+0.5f)*Cell,z=HalfMaze-(row+0.5f)*Cell;
-                    const float dx=x-point.x,dz=z-point.z,distance=dx*dx+dz*dz;
+                    const float x=HalfMaze-(col+0.5f)*Cell;
+                    const float dx=x-point.x,distance=dx*dx+dz*dz;
                     if (distance<bestDistance) { bestDistance=distance; bestCol=col; bestRow=row; }
                 }
+            }
             if (bestCol<0) continue;
             const float x=HalfMaze-(bestCol+0.5f)*Cell,z=HalfMaze-(bestRow+0.5f)*Cell;
-            if (haveLastMark && std::hypot(x-lastMark.x,z-lastMark.z)<0.18f) continue;
+            if (haveLastMark && (x-lastMark.x)*(x-lastMark.x)+(z-lastMark.z)*(z-lastMark.z)<0.18f*0.18f) continue;
             const Vec3 forward{std::cos(point.yaw),0.0f,std::sin(point.yaw)};
             const Vec3 right{std::sin(point.yaw),0.0f,-std::cos(point.yaw)};
             for (float side:{-0.075f,0.075f}) {
@@ -764,23 +839,30 @@ std::vector<Vertex> buildMaze(const Game& game) {
             haveLastMark=true;
         }
     }
-    const float gateRadius=boundaryRadius(game,RingCount,ExitAngle)+0.30f;
-    const float gateX=std::cos(ExitAngle)*gateRadius, gateZ=std::sin(ExitAngle)*gateRadius;
-    addBox(out,gateX-1.08f,gateX-0.95f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
-    addBox(out,gateX+0.95f,gateX+1.08f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
-    addBox(out,gateX-1.08f,gateX+1.08f,1.72f,1.88f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
     return out;
 }
 
+// Upload the unchanging world mesh with static GPU storage.
 void uploadMazeGeometry(Game& game) {
     if (!game.worldVao || !game.worldVbo) return;
     const auto vertices=buildMaze(game);
     game.worldVertexCount=static_cast<GLsizei>(vertices.size());
     glBindVertexArray(game.worldVao);
     glBindBuffer(GL_ARRAY_BUFFER,game.worldVbo);
+    glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(Vertex)),vertices.data(),GL_STATIC_DRAW);
+}
+
+// Refresh only collectible and trace meshes after a player finds one.
+void uploadFindGeometry(Game& game) {
+    if (!game.findVao || !game.findVbo) return;
+    const auto vertices=buildFindGeometry(game);
+    game.findVertexCount=static_cast<GLsizei>(vertices.size());
+    glBindVertexArray(game.findVao);
+    glBindBuffer(GL_ARRAY_BUFFER,game.findVbo);
     glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(Vertex)),vertices.data(),GL_DYNAMIC_DRAW);
 }
 
+// Build a randomized spanning tree, place items, then rasterize its curved walls for movement.
 bool generateMaze(Game& game) {
     struct CellNode { int ring, sector; };
     std::vector<CellNode> nodes{{0,0}};
@@ -878,6 +960,14 @@ bool generateMaze(Game& game) {
         const float radius=(boundaryRadius(game,node.ring-1,angle)+boundaryRadius(game,node.ring,angle))*0.5f;
         return std::pair<float,float>{std::cos(angle)*radius,std::sin(angle)*radius};
     };
+    // Keep the small logical graph so route finding works on rooms, not hundreds of thousands of pixels.
+    game.mazeNodes.clear();
+    game.mazeNodes.reserve(nodes.size());
+    for (size_t id=0;id<nodes.size();++id) {
+        const auto [x,z]=nodePosition(static_cast<int>(id));
+        game.mazeNodes.push_back({nodes[id].ring,nodes[id].sector,x,z,passages[id]});
+    }
+    game.mazeExitNode=exitNode;
     std::vector<int> traceCells;
     for (int node=1;node<static_cast<int>(nodes.size());++node) {
         if (node==exitNode || std::find(batteryNodes.begin(),batteryNodes.end(),node)!=batteryNodes.end()) continue;
@@ -975,12 +1065,22 @@ bool generateMaze(Game& game) {
     addWallArc(RingCount,0.0f,outerPortalAngle-exitHalfAngle,false,true);
     addWallArc(RingCount,outerPortalAngle+exitHalfAngle,2.0f*Pi,true,false);
 
+    // Rasterize the smooth polar rooms into a fixed grid so movement checks stay fast.
     game.map.assign(MapSize,std::string(MapSize,'#'));
     for (int row=0;row<MapSize;++row) for (int col=0;col<MapSize;++col) {
         const float x=HalfMaze-(col+0.5f)*Cell;
         const float z=HalfMaze-(row+0.5f)*Cell;
         const float radius=std::hypot(x,z), angle=std::atan2(z,x);
-        const float outerRadius=boundaryRadius(game,RingCount,angle);
+        // Reuse the two shape waves for every ring instead of recalculating them in each wall check.
+        const float shape=0.68f*std::sin(angle*3.0f+game.mazePhaseA)
+                         +0.32f*std::sin(angle*5.0f+game.mazePhaseB);
+        std::array<float,RingCount+1> localRadii{};
+        for (int boundary=0;boundary<=RingCount;++boundary) {
+            const float base=CenterRadius+RadialStep*boundary;
+            const float variation=boundary==0?0.0f:0.82f*(static_cast<float>(boundary)/RingCount)*shape;
+            localRadii[boundary]=base+variation;
+        }
+        const float outerRadius=localRadii[RingCount];
         bool floor=false;
         if (radius>=outerRadius) {
             floor=std::abs(wrap(angle-ExitAngle))*outerRadius<DoorHalfWidth && radius<outerRadius+0.95f;
@@ -988,7 +1088,7 @@ bool generateMaze(Game& game) {
             floor=true;
         } else {
             int ring=1;
-            while (ring<RingCount && radius>=boundaryRadius(game,ring,angle)) ++ring;
+            while (ring<RingCount && radius>=localRadii[ring]) ++ring;
             const int sectors=sectorsForRing(ring);
             float turn=angle/(2.0f*Pi);
             if (turn<0.0f) turn+=1.0f;
@@ -997,7 +1097,7 @@ bool generateMaze(Game& game) {
             floor=true;
 
             for (int boundary=0;boundary<RingCount;++boundary) {
-                const float localBoundaryRadius=boundaryRadius(game,boundary,angle);
+                const float localBoundaryRadius=localRadii[boundary];
                 if (std::abs(radius-localBoundaryRadius)>=WallHalfThickness) continue;
                 const int outerRing=boundary+1;
                 const int outerSectors=sectorsForRing(outerRing);
@@ -1019,7 +1119,7 @@ bool generateMaze(Game& game) {
                 const int edgeBefore=(fraction<0.5f?(sector+sectors-1)%sectors:sector);
                 const int other=(edgeBefore+1)%sectors;
                 const int edgeA=rings[ring][edgeBefore], edgeB=rings[ring][other];
-                const float middleRadius=(boundaryRadius(game,ring-1,angle)+boundaryRadius(game,ring,angle))*0.5f;
+                const float middleRadius=(localRadii[ring-1]+localRadii[ring])*0.5f;
                 if (!hasPassage(edgeA,edgeB) || std::abs(radius-middleRadius)>DoorHalfWidth)
                     floor=false;
             }
@@ -1032,6 +1132,7 @@ bool generateMaze(Game& game) {
     return game.map.size()==MapSize && std::all_of(game.map.begin(),game.map.end(),[](const std::string& row){return row.size()==MapSize;});
 }
 
+// Read local settings and user-data paths, then generate the first maze.
 bool loadMap(Game& game) {
     wchar_t path[MAX_PATH]{};
     GetModuleFileNameW(nullptr,path,MAX_PATH);
@@ -1060,12 +1161,15 @@ bool loadMap(Game& game) {
     return generateMaze(game);
 }
 
+// Generate a fresh seed and refresh the static world and collectible meshes.
 void regenerateMaze(Game& game) {
     if (!generateMaze(game)) return;
     game.routeVertexCount=0;
     uploadMazeGeometry(game);
+    uploadFindGeometry(game);
 }
 
+// Check the fine collision grid, including the short walkable tunnel outside the exit.
 bool atFloor(const Game& game, float x, float z) {
     const int col=static_cast<int>(std::floor((HalfMaze-x)/Cell));
     const int row=static_cast<int>(std::floor((HalfMaze-z)/Cell));
@@ -1076,6 +1180,7 @@ bool atFloor(const Game& game, float x, float z) {
     return radius<boundaryRadius(game,RingCount,angle)+0.95f && std::abs(delta)<0.11f;
 }
 
+// Reject positions where the player's circular footprint would touch a wall.
 bool canStand(const Game& game, float x, float z) {
     constexpr float radius=0.35f;
     if (!atFloor(game,x,z)) return false;
@@ -1097,11 +1202,13 @@ bool canStand(const Game& game, float x, float z) {
     return true;
 }
 
+// Format an elapsed run time as minutes and seconds for the HUD.
 void formatTime(float elapsed, char* out) {
     const int seconds=static_cast<int>(elapsed);
     wsprintfA(out,"%02d:%02d",seconds/60,seconds%60);
 }
 
+// Return the short title/HUD label associated with a run's atmosphere effect.
 const char* runOmenName(RunOmen omen) {
     switch (omen) {
     case RunOmen::VeiledMoon: return "VEILED MOON";
@@ -1112,6 +1219,7 @@ const char* runOmenName(RunOmen omen) {
     }
 }
 
+// Confine and hide the cursor during play, then restore it in menus.
 void captureMouse(Game& game, bool capture) {
     game.mouseCaptured=capture;
     if (capture) {
@@ -1125,20 +1233,24 @@ void captureMouse(Game& game, bool capture) {
     }
 }
 
+// Fast deterministic random values for effects belonging to the current maze seed.
 float randomUnit(Game& game) {
     uint32_t& value=game.runtimeRandom;
     value^=value<<13; value^=value>>17; value^=value<<5;
     return static_cast<float>(value&0x00ffffffu)/16777215.0f;
 }
 
+// Pick the initial flashlight charge for the selected difficulty.
 float initialBattery(const Game& game) {
     return game.difficultyIndex==0?100.0f:(game.difficultyIndex==1?80.0f:65.0f);
 }
 
+// Set how many seconds the route skill waits before it can be used again.
 float routeCooldownLength(const Game& game) {
     return game.difficultyIndex==0?10.0f:(game.difficultyIndex==1?15.0f:25.0f);
 }
 
+// Reset per-run resources and counters without changing the already generated maze.
 void resetRunState(Game& game) {
     game.runSeed=game.mazeSeed;
     game.batteryCharge=initialBattery(game);
@@ -1151,6 +1263,7 @@ void resetRunState(Game& game) {
     game.newRecord=false;
 }
 
+// Start recording a fresh, size-limited trail for the run that just began.
 void startTrail(Game& game) {
     game.currentTrail.clear();
     game.currentTrail.push_back({game.x,game.z,game.yaw});
@@ -1159,6 +1272,7 @@ void startTrail(Game& game) {
     game.noticeTimer=0.0f;
 }
 
+// Persist the best completion time and its seed in the Windows INI file.
 void saveRunRecord(Game& game) {
     const std::wstring time=std::to_wstring(static_cast<int>(std::lround(game.bestTime*1000.0f)));
     const std::wstring seed=std::to_wstring(game.bestSeed);
@@ -1167,6 +1281,7 @@ void saveRunRecord(Game& game) {
     WritePrivateProfileStringW(nullptr,nullptr,nullptr,game.settingsPath.c_str());
 }
 
+// Load local completion history; skip malformed rows so one bad save cannot block startup.
 void loadPastRuns(Game& game) {
     std::ifstream file(game.pastRunsPath);
     std::string line;
@@ -1192,6 +1307,7 @@ void loadPastRuns(Game& game) {
     }
 }
 
+// Append the completed run to disk and make it visible in the current menu immediately.
 void recordPastRun(Game& game) {
     SYSTEMTIME localTime{};
     GetLocalTime(&localTime);
@@ -1205,6 +1321,7 @@ void recordPastRun(Game& game) {
     game.pastRuns.push_back(std::move(run));
 }
 
+// Load at most 2,400 prior footsteps to keep the save and next-map mesh bounded.
 void loadPreviousTrail(Game& game) {
     std::ifstream file(game.trailPath);
     std::string line;
@@ -1229,6 +1346,7 @@ void loadPreviousTrail(Game& game) {
     }
 }
 
+// Save the route just completed and its maze seed for the next maze's faint footprints.
 void savePreviousTrail(Game& game) {
     if (game.currentTrail.empty()) game.currentTrail.push_back({game.x,game.z,game.yaw});
     else {
@@ -1245,6 +1363,7 @@ void savePreviousTrail(Game& game) {
         file<<point.x<<','<<point.z<<','<<point.yaw<<'\n';
 }
 
+// Collect nearby batteries and survivor traces, then refresh only their small GPU mesh.
 void collectNearbyFinds(Game& game) {
     bool changed=false;
     for (BatteryPickup& pickup:game.batteryPickups) {
@@ -1283,9 +1402,10 @@ void collectNearbyFinds(Game& game) {
             game.noticeMessage=notes[trace.note%4];
         }
     }
-    if (changed) uploadMazeGeometry(game);
+    if (changed) uploadFindGeometry(game);
 }
 
+// Drain the flashlight battery and schedule brief randomized flickers.
 void updateFlashlight(Game& game,float dt) {
     game.flickerTimer=std::max(0.0f,game.flickerTimer-dt);
     if (!game.flashlightOn || game.batteryCharge<=0.0f) return;
@@ -1310,6 +1430,7 @@ void updateFlashlight(Game& game,float dt) {
     }
 }
 
+// Advance clouds, moonlight, and distance-sensitive wind/bell/exit audio.
 void updateAtmosphere(Game& game,float dt) {
     game.weatherTime+=dt;
     if (game.weatherTime>7200.0f) game.weatherTime=std::fmod(game.weatherTime,7200.0f);
@@ -1345,6 +1466,7 @@ void updateAtmosphere(Game& game,float dt) {
     game.spatialAudio.cueVolume.store(0.12f*attenuation*radiusFade,std::memory_order_relaxed);
 }
 
+// Start another generated run from an escape screen.
 void restart(Game& game) {
     regenerateMaze(game);
     game.x=game.z=game.pitch=game.elapsed=0.0f;
@@ -1360,6 +1482,7 @@ void restart(Game& game) {
     SetFocus(game.window);
 }
 
+// Begin the current maze from the title screen without changing its seed.
 void beginGame(Game& game) {
     game.started=true;
     game.paused=false;
@@ -1371,6 +1494,7 @@ void beginGame(Game& game) {
     SetFocus(game.window);
 }
 
+// Return to the title and generate the next maze while releasing mouse capture.
 void returnToMenu(Game& game) {
     regenerateMaze(game);
     game.x=game.z=game.pitch=game.elapsed=0.0f;
@@ -1387,15 +1511,15 @@ void returnToMenu(Game& game) {
     playSound(game,L"menu.wav");
 }
 
+// Reveal an A* route on the small polar room graph and draw it through real door centers.
 void activateRoute(Game& game) {
-    if (game.routeCooldown>0.0f || !game.started || game.paused || game.won) return;
-    const int startX=static_cast<int>(std::floor((HalfMaze-game.x)/Cell));
-    const int startY=static_cast<int>(std::floor((HalfMaze-game.z)/Cell));
-    if (startX<0 || startY<0 || startX>=MapSize || startY>=MapSize || game.map[startY][startX]!='.') return;
-    const int count=MapSize*MapSize;
-    auto center=[&](int cell) {
-        const int x=cell%MapSize, y=cell/MapSize;
-        return Vec3{HalfMaze-(x+0.5f)*Cell,0.025f,HalfMaze-(y+0.5f)*Cell};
+    if (game.routeCooldown>0.0f || !game.started || game.paused || game.won || game.mazeNodes.empty()) return;
+
+    // The maze graph has only 137 rooms, so search it directly instead of raster-searching 313,600 tiles.
+    const Vec3 playerPosition{game.x,0.025f,game.z};
+    auto nodeCenter=[&](int id) {
+        const MazeNode& node=game.mazeNodes[id];
+        return Vec3{node.x,0.025f,node.z};
     };
     auto clearLine=[&](Vec3 a,Vec3 b) {
         const float length=std::hypot(b.x-a.x,b.z-a.z);
@@ -1406,97 +1530,122 @@ void activateRoute(Game& game) {
         }
         return true;
     };
-    std::vector<uint8_t> safe(count,0);
-    for (int cell=0;cell<count;++cell) if (game.map[cell/MapSize][cell%MapSize]=='.') {
-        const Vec3 p=center(cell);
-        safe[cell]=canStand(game,p.x,p.z);
-    }
-    int start=startY*MapSize+startX;
-    if (!safe[start]) {
-        int nearest=-1;
-        float nearestDistance=0.75f*0.75f;
-        const int radius=static_cast<int>(std::ceil(0.75f/Cell));
-        for (int y=std::max(0,startY-radius);y<=std::min(MapSize-1,startY+radius);++y)
-            for (int x=std::max(0,startX-radius);x<=std::min(MapSize-1,startX+radius);++x) {
-                const int cell=y*MapSize+x;
-                if (!safe[cell]) continue;
-                const Vec3 p=center(cell);
-                const float dx=p.x-game.x, dz=p.z-game.z, distance=dx*dx+dz*dz;
-                if (distance<nearestDistance) { nearestDistance=distance; nearest=cell; }
-            }
-        if (nearest<0) return;
-        start=nearest;
-    }
-    const float exitRadius=boundaryRadius(game,RingCount,ExitAngle);
-    const float goalRadius=exitRadius-0.45f;
-    int goal=-1;
-    float goalDistance=std::numeric_limits<float>::max();
-    for (int cell=0;cell<count;++cell) if (safe[cell]) {
-        const Vec3 p=center(cell);
-        const float wx=p.x, wz=p.z;
-        const float radius=std::hypot(wx,wz), angle=std::atan2(wz,wx);
-        const float angleDelta=std::atan2(std::sin(angle-ExitAngle),std::cos(angle-ExitAngle));
-        if (radius<exitRadius-0.8f || std::abs(angleDelta)*radius>DoorHalfWidth-0.4f) continue;
-        const float distance=(radius-goalRadius)*(radius-goalRadius)+angleDelta*angleDelta*goalRadius*goalRadius;
-        if (distance<goalDistance) { goalDistance=distance; goal=cell; }
-    }
-    if (goal<0) return;
-    auto heuristic=[&](int cell) {
-        return static_cast<float>(std::abs(cell%MapSize-goal%MapSize)+std::abs(cell/MapSize-goal/MapSize));
+
+    // Connect each pair of room centers through the middle of its actual open doorway.
+    auto passageCenter=[&](int from,int to) {
+        const MazeNode& a=game.mazeNodes[from];
+        const MazeNode& b=game.mazeNodes[to];
+        float angle=0.0f, radius=0.0f;
+        if (a.ring==b.ring) {
+            const float angleA=(a.sector+0.5f)*2.0f*Pi/sectorsForRing(a.ring);
+            const float angleB=(b.sector+0.5f)*2.0f*Pi/sectorsForRing(b.ring);
+            const float difference=std::atan2(std::sin(angleB-angleA),std::cos(angleB-angleA));
+            angle=angleA+difference*0.5f;
+            radius=(boundaryRadius(game,a.ring-1,angle)+boundaryRadius(game,a.ring,angle))*0.5f;
+        } else {
+            const MazeNode& outer=a.ring>b.ring?a:b;
+            const int innerRing=std::min(a.ring,b.ring);
+            angle=(outer.sector+0.5f)*2.0f*Pi/sectorsForRing(outer.ring);
+            radius=boundaryRadius(game,innerRing,angle);
+        }
+        return Vec3{std::cos(angle)*radius,0.025f,std::sin(angle)*radius};
     };
-    std::vector<float> cost(count,std::numeric_limits<float>::infinity());
-    std::vector<int> parent(count,-1);
+
+    // Start at the nearest room whose center can be reached without crossing a wall.
+    std::vector<std::pair<float,int>> startCandidates;
+    startCandidates.reserve(game.mazeNodes.size());
+    for (size_t id=0;id<game.mazeNodes.size();++id) {
+        const MazeNode& node=game.mazeNodes[id];
+        const float dx=node.x-game.x,dz=node.z-game.z;
+        startCandidates.push_back({dx*dx+dz*dz,static_cast<int>(id)});
+    }
+    std::sort(startCandidates.begin(),startCandidates.end());
+    int start=-1;
+    for (const auto& candidate:startCandidates) {
+        if (candidate.first>3.5f*3.5f) break;
+        if (clearLine(playerPosition,nodeCenter(candidate.second))) {
+            start=candidate.second;
+            break;
+        }
+    }
+    const int goal=game.mazeExitNode;
+    if (start<0 || goal<0 || goal>=static_cast<int>(game.mazeNodes.size())) return;
+
+    // A* uses straight-line distance as an admissible estimate of the remaining route.
+    std::vector<float> cost(game.mazeNodes.size(),std::numeric_limits<float>::infinity());
+    std::vector<int> parent(game.mazeNodes.size(),-1);
     using OpenEntry=std::pair<float,int>;
     std::priority_queue<OpenEntry,std::vector<OpenEntry>,std::greater<OpenEntry>> open;
-    cost[start]=0.0f; parent[start]=start; open.push({heuristic(start),start});
-    constexpr int dx[4]={-1,1,0,0}, dy[4]={0,0,-1,1};
+    auto heuristic=[&](int id) {
+        const MazeNode& node=game.mazeNodes[id];
+        const MazeNode& exit=game.mazeNodes[goal];
+        return std::hypot(node.x-exit.x,node.z-exit.z);
+    };
+    cost[start]=0.0f;
+    parent[start]=start;
+    open.push({heuristic(start),start});
     while (!open.empty()) {
-        const int cell=open.top().second;
-        const float score=open.top().first;
+        const auto [score,current]=open.top();
         open.pop();
-        if (cell==goal) break;
-        if (score>cost[cell]+heuristic(cell)+0.001f) continue;
-        const int x=cell%MapSize, y=cell/MapSize;
-        for (int d=0;d<4;++d) {
-            const int nx=x+dx[d], ny=y+dy[d];
-            if (nx<0 || ny<0 || nx>=MapSize || ny>=MapSize) continue;
-            const int next=ny*MapSize+nx;
-            if (!safe[next]) continue;
-            if (!clearLine(center(cell),center(next))) continue;
-            const float nextCost=cost[cell]+1.0f;
-            if (nextCost<cost[next]) {
-                cost[next]=nextCost; parent[next]=cell;
-                open.push({nextCost+heuristic(next),next});
-            }
+        if (score>cost[current]+heuristic(current)+0.001f) continue;
+        if (current==goal) break;
+        for (const int next:game.mazeNodes[current].links) {
+            const MazeNode& a=game.mazeNodes[current];
+            const MazeNode& b=game.mazeNodes[next];
+            const float edgeCost=std::hypot(a.x-b.x,a.z-b.z);
+            const float nextCost=cost[current]+edgeCost;
+            if (nextCost>=cost[next]) continue;
+            cost[next]=nextCost;
+            parent[next]=current;
+            open.push({nextCost+heuristic(next),next});
         }
     }
     if (parent[goal]<0) return;
+
     std::vector<int> path;
-    for (int cell=goal;cell!=start;cell=parent[cell]) path.push_back(cell);
+    for (int id=goal;id!=start;id=parent[id]) path.push_back(id);
     path.push_back(start);
     std::reverse(path.begin(),path.end());
+
+    std::vector<Vec3> waypoints;
+    waypoints.reserve(path.size()*2+2);
+    waypoints.push_back(playerPosition);
+    waypoints.push_back(nodeCenter(start));
+    for (size_t i=1;i<path.size();++i) {
+        waypoints.push_back(passageCenter(path[i-1],path[i]));
+        waypoints.push_back(nodeCenter(path[i]));
+    }
+    const float exitRadius=boundaryRadius(game,RingCount,ExitAngle);
+    waypoints.push_back({std::cos(ExitAngle)*(exitRadius+0.45f),0.025f,
+                         std::sin(ExitAngle)*(exitRadius+0.45f)});
+
     std::vector<Vertex> vertices;
-    vertices.reserve(path.size()*6);
+    vertices.reserve(waypoints.size()*6);
     auto addRibbon=[&](Vec3 a,Vec3 b) {
-        const float dx=b.x-a.x, dz=b.z-a.z, len=std::hypot(dx,dz);
+        const float dx=b.x-a.x,dz=b.z-a.z,len=std::hypot(dx,dz);
         if (len<0.0001f) return;
-        const float ox=-dz/len*0.04f, oz=dx/len*0.04f;
+        const float ox=-dz/len*0.04f,oz=dx/len*0.04f;
         addQuad(vertices,{a.x+ox,a.y,a.z+oz},{b.x+ox,b.y,b.z+oz},
-                {b.x-ox,b.y,b.z-oz},{a.x-ox,a.y,a.z-oz},{0,1,0},0.06f,0.72f,0.92f,1.5f,3.0f);
+                {b.x-ox,b.y,b.z-oz},{a.x-ox,a.y,a.z-oz},{0,1,0},
+                0.06f,0.72f,0.92f,1.5f,3.0f);
     };
-    const Vec3 playerPosition{game.x,0.025f,game.z}, startPosition=center(start);
-    if (clearLine(playerPosition,startPosition)) addRibbon(playerPosition,startPosition);
-    for (size_t i=1;i<path.size();++i) addRibbon(center(path[i-1]),center(path[i]));
-    const Vec3 exit{std::cos(ExitAngle)*(exitRadius+0.45f),0.025f,std::sin(ExitAngle)*(exitRadius+0.45f)};
-    if (clearLine(center(path.back()),exit)) addRibbon(center(path.back()),exit);
-    glBindVertexArray(game.routeVao); glBindBuffer(GL_ARRAY_BUFFER,game.routeVbo);
+    for (size_t i=1;i<waypoints.size();++i) {
+        // Validate the displayed line itself so visual route segments never cut through walls.
+        if (!clearLine(waypoints[i-1],waypoints[i])) return;
+        addRibbon(waypoints[i-1],waypoints[i]);
+    }
+    if (vertices.empty()) return;
+
+    glBindVertexArray(game.routeVao);
+    glBindBuffer(GL_ARRAY_BUFFER,game.routeVbo);
     glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(Vertex)),vertices.data(),GL_DYNAMIC_DRAW);
     game.routeVertexCount=static_cast<GLsizei>(vertices.size());
-    game.routeVisible=1.0f; game.routeCooldown=routeCooldownLength(game);
+    game.routeVisible=1.0f;
+    game.routeCooldown=routeCooldownLength(game);
     ++game.routeUses;
     playSound(game,L"route.wav");
 }
-
+// Toggle the beam without consuming charge while the light is switched off.
 void toggleFlashlight(Game& game) {
     if (!game.started || game.paused || game.won) return;
     if (game.flashlightOn) game.flashlightOn=false;
@@ -1505,6 +1654,7 @@ void toggleFlashlight(Game& game) {
     playSound(game,L"flashlight_switch.wav");
 }
 
+// Spend one collected cell to restore up to half of the flashlight's charge.
 void useBattery(Game& game) {
     if (!game.started || game.paused || game.won || game.batteryCount<=0 || game.batteryCharge>=100.0f) return;
     --game.batteryCount;
@@ -1517,6 +1667,7 @@ void useBattery(Game& game) {
     playSound(game,L"battery_recharge.wav");
 }
 
+// Write the current display, sound, difficulty, and control choices to settings.ini.
 void saveSettings(const Game& game) {
     auto write=[&](const wchar_t* section,const wchar_t* key,int value) {
         const std::wstring text=std::to_wstring(value);
@@ -1532,6 +1683,7 @@ void saveSettings(const Game& game) {
     WritePrivateProfileStringW(nullptr,nullptr,nullptr,game.settingsPath.c_str());
 }
 
+// Apply the selected window size or full-screen display mode.
 void setResolution(Game& game) {
     constexpr int widths[]={960,1280,1600}, heights[]={600,800,900};
     game.resolutionIndex=std::clamp(game.resolutionIndex,0,3);
@@ -1549,17 +1701,20 @@ void setResolution(Game& game) {
                  SWP_FRAMECHANGED|SWP_SHOWWINDOW);
 }
 
+// Open settings from a menu and make sure the mouse is no longer trapped.
 void openSettings(Game& game) {
     game.showSettings=true;
     game.settingsIndex=0;
     captureMouse(game,false);
 }
 
+// Close the settings panel and return to the menu or paused game that opened it.
 void closeSettings(Game& game) {
     game.showSettings=false;
     saveSettings(game);
 }
 
+// Apply one left/right setting change and persist it immediately.
 void adjustSetting(Game& game,int direction) {
     switch (game.settingsIndex) {
     case 0:
@@ -1586,6 +1741,7 @@ void adjustSetting(Game& game,int direction) {
     saveSettings(game);
 }
 
+// Handle Windows sizing, raw mouse input, buttons, menus, focus, and shutdown messages.
 LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     auto* game=reinterpret_cast<Game*>(GetWindowLongPtrW(window,GWLP_USERDATA));
     if (message==WM_NCCREATE) {
@@ -1683,6 +1839,7 @@ constexpr int WglCoreProfile = 0x00000001;
 using CreateContextAttribs = HGLRC(WINAPI*)(HDC,HGLRC,const int*);
 using SwapInterval = BOOL(WINAPI*)(int);
 
+// Request a double-buffered RGBA window with depth and stencil buffers for OpenGL.
 bool setPixelFormat(HDC dc) {
     PIXELFORMATDESCRIPTOR pfd{};
     pfd.nSize=sizeof(pfd); pfd.nVersion=1;
@@ -1693,6 +1850,7 @@ bool setPixelFormat(HDC dc) {
     return format && SetPixelFormat(dc,format,&pfd);
 }
 
+// Create the game window and a modern WGL OpenGL context for it.
 bool createWindowAndContext(Game& game, HINSTANCE instance) {
     WNDCLASSEXW wc{};
     wc.cbSize=sizeof(wc); wc.style=CS_OWNDC; wc.lpfnWndProc=windowProc;
@@ -1731,6 +1889,7 @@ bool createWindowAndContext(Game& game, HINSTANCE instance) {
     return true;
 }
 
+// Vertex shader: transform world positions and pass surface data to the lighting shader.
 constexpr char WorldVertexShader[] = R"GLSL(#version 330 core
 layout(location=0) in vec3 aPosition;
 layout(location=1) in vec3 aNormal;
@@ -1761,6 +1920,7 @@ void main() {
     gl_Position = uProjection * uView * world;
 })GLSL";
 
+// Shadow shaders render only scene depth from the flashlight's point of view.
 constexpr char ShadowVertexShader[] = R"GLSL(#version 330 core
 layout(location=0) in vec3 aPosition;
 uniform mat4 uLightMatrix;
@@ -1772,6 +1932,7 @@ constexpr char ShadowFragmentShader[] = R"GLSL(#version 330 core
 void main() { }
 )GLSL";
 
+// World fragment shader: apply PBR maps, flashlight/sky lighting, and filtered shadows.
 constexpr char WorldFragmentShader[] = R"GLSL(#version 330 core
 in vec3 vWorld;
 in vec3 vNormal;
@@ -1796,9 +1957,10 @@ uniform sampler2D uStoneRoughness;
 uniform sampler2D uGrassAO;
 uniform sampler2D uStoneAO;
 uniform sampler2D uPropTexture;
-uniform sampler2D uShadowMap;
+uniform sampler2DShadow uShadowMap;
 out vec4 outColor;
 vec3 srgbToLinear(vec3 color) { return pow(max(color,vec3(0.0)),vec3(2.2)); }
+// Rebuild a tangent-space basis from screen derivatives, then apply the sampled normal map.
 vec3 mappedNormal(vec3 normal,vec3 position,vec2 uv,vec3 sampleNormal) {
     vec3 dp1=dFdx(position), dp2=dFdy(position);
     vec2 duv1=dFdx(uv), duv2=dFdy(uv);
@@ -1808,6 +1970,7 @@ vec3 mappedNormal(vec3 normal,vec3 position,vec2 uv,vec3 sampleNormal) {
     bitangent=normalize(cross(normal,tangent))*handedness;
     return normalize(mat3(tangent,bitangent,normal)*(sampleNormal*2.0-1.0));
 }
+// Filter a flashlight shadow using a few hardware depth-comparison samples.
 float shadowVisibility(vec3 normal,vec3 lightDirection) {
     vec3 projected=vLightPosition.xyz/vLightPosition.w;
     projected=projected*0.5+0.5;
@@ -1815,12 +1978,15 @@ float shadowVisibility(vec3 normal,vec3 lightDirection) {
     float bias=max(0.0016*(1.0-dot(normal,lightDirection)),0.00055);
     vec2 texel=1.0/vec2(textureSize(uShadowMap,0));
     float visible=0.0;
-    for (int x=-1;x<=1;++x) for (int y=-1;y<=1;++y) {
-        float depth=texture(uShadowMap,projected.xy+vec2(x,y)*texel).r;
-        visible+=projected.z-bias<=depth?1.0:0.0;
-    }
-    return visible/9.0;
+    // Hardware depth comparison plus linear filtering replaces nine manual depth samples.
+    float compareDepth=projected.z-bias;
+    visible+=texture(uShadowMap,vec3(projected.xy+texel*vec2(-0.25,-0.25),compareDepth));
+    visible+=texture(uShadowMap,vec3(projected.xy+texel*vec2(0.25,-0.25),compareDepth));
+    visible+=texture(uShadowMap,vec3(projected.xy+texel*vec2(-0.25,0.25),compareDepth));
+    visible+=texture(uShadowMap,vec3(projected.xy+texel*vec2(0.25,0.25),compareDepth));
+    return visible*0.25;
 }
+// Shade each visible pixel using the material maps, flashlight cone, moonlight, shadows, and fog.
 void main() {
     vec3 toPoint = vWorld - uLightPos;
     float distanceToEye = length(vWorld - uEye);
@@ -1885,6 +2051,7 @@ void main() {
     outColor = vec4(color, alpha);
 })GLSL";
 
+// Sky shaders draw the night texture plus procedural stars, moving moon, and clouds.
 constexpr char SkyVertexShader[] = R"GLSL(#version 330 core
 layout(location=0) in vec3 aPosition;
 layout(location=1) in vec2 aUv;
@@ -1910,6 +2077,7 @@ uniform float uCloudCoverage;
 uniform float uMoonU;
 uniform float uMoonlight;
 out vec4 outColor;
+// Small deterministic shader random/noise helpers used to shape stars and moving clouds.
 float hash(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float noise(vec2 p) {
     vec2 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f);
@@ -1918,7 +2086,8 @@ float noise(vec2 p) {
 }
 float cloudNoise(vec2 p) {
     float value=0.0,amplitude=0.52;
-    for (int octave=0;octave<4;++octave) {
+    // Three blended scales keep the cloud shapes detailed with fewer full-screen noise samples.
+    for (int octave=0;octave<3;++octave) {
         value+=amplitude*noise(p);
         p=p*2.03+vec2(19.17,7.31);
         amplitude*=0.5;
@@ -1930,7 +2099,8 @@ void main() {
     vec3 night=vec3(0.001,0.002,0.008)+sampled*0.025;
     vec2 grid=vUv*vec2(480.0,240.0), cell=floor(grid), local=fract(grid);
     float seed=hash(cell);
-    float star=(step(0.9975,seed))*(1.0-smoothstep(0.035,0.10,length(local-vec2(hash(cell+1.3),hash(cell+5.7)))));
+    vec2 starPosition=fract(vec2(seed*17.13,seed*39.71));
+    float star=step(0.9975,seed)*(1.0-smoothstep(0.035,0.10,length(local-starPosition)));
     float deltaU=abs(vUv.x-uMoonU); deltaU=min(deltaU,1.0-deltaU);
     vec2 moonDelta=vec2(deltaU*1.25,vUv.y-0.755);
     float moonDistance=length(moonDelta);
@@ -1952,6 +2122,7 @@ void main() {
 }
 )GLSL";
 
+// UI shaders draw the hand-built pixel font and menu/HUD rectangles over the 3D scene.
 constexpr char UiVertexShader[] = R"GLSL(#version 330 core
 layout(location=0) in vec2 aPosition;
 layout(location=1) in vec4 aColor;
@@ -1965,6 +2136,7 @@ out vec4 outColor;
 void main() { outColor=vColor; }
 )GLSL";
 
+// Describe the vertex buffer layout to OpenGL (world vertices or simpler UI vertices).
 void configureVertexArray(GLuint vao, GLuint vbo, bool ui) {
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER,vbo);
@@ -1989,6 +2161,7 @@ void configureVertexArray(GLuint vao, GLuint vbo, bool ui) {
     }
 }
 
+// Load the bundled uncompressed RGB sky image into CPU memory.
 bool loadPpm(const std::filesystem::path& path, int& width, int& height, std::vector<uint8_t>& pixels) {
     std::ifstream file(path,std::ios::binary);
     std::string magic;
@@ -1999,6 +2172,7 @@ bool loadPpm(const std::filesystem::path& path, int& width, int& height, std::ve
     return static_cast<bool>(file.read(reinterpret_cast<char*>(pixels.data()),static_cast<std::streamsize>(pixels.size())));
 }
 
+// Upload an RGB PPM image and mipmaps as an OpenGL texture.
 GLuint loadTexture(const std::filesystem::path& path, GLint wrapS, GLint wrapT) {
     int width=0,height=0;
     std::vector<uint8_t> pixels;
@@ -2015,13 +2189,16 @@ GLuint loadTexture(const std::filesystem::path& path, GLint wrapS, GLint wrapT) 
     return texture;
 }
 
+// Allocate the depth texture and framebuffer used for flashlight shadows.
 bool createShadowResources(Game& game) {
     constexpr int resolution=2048;
     glGenTextures(1,&game.shadowTexture);
     glBindTexture(GL_TEXTURE_2D,game.shadowTexture);
     glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,resolution,resolution,0,GL_DEPTH_COMPONENT,GL_FLOAT,nullptr);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_COMPARE_MODE,GL_COMPARE_REF_TO_TEXTURE);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_COMPARE_FUNC,GL_LEQUAL);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_BORDER);
     const float border[]={1.0f,1.0f,1.0f,1.0f};
@@ -2037,6 +2214,7 @@ bool createShadowResources(Game& game) {
     return complete;
 }
 
+// Convert a bundled image with GDI+ and upload it in the channel layout OpenGL needs.
 GLuint loadImageTexture(const std::filesystem::path& path,GLint wrapS=GL_REPEAT,GLint wrapT=GL_REPEAT,
                         int channels=4,bool flipRows=true) {
     Gdiplus::Bitmap image(path.c_str());
@@ -2082,6 +2260,7 @@ GLuint loadImageTexture(const std::filesystem::path& path,GLint wrapS=GL_REPEAT,
     return texture;
 }
 
+// Read the flashlight OBJ/MTL files, build material groups, and upload its textured mesh.
 bool loadObjModel(Game& game,const std::filesystem::path& path,ModelObject& output) {
     struct Index { int position=-1, uv=-1, normal=-1; };
     struct Group { std::vector<Vertex> vertices; };
@@ -2190,6 +2369,7 @@ bool loadObjModel(Game& game,const std::filesystem::path& path,ModelObject& outp
     return true;
 }
 
+// Create a low-poly sphere around the camera for the sky shader to shade.
 std::vector<SkyVertex> buildSky() {
     constexpr int rings=32, slices=64;
     std::vector<SkyVertex> vertices;
@@ -2209,6 +2389,7 @@ std::vector<SkyVertex> buildSky() {
     return vertices;
 }
 
+// Compile shaders, load textures/models, and create the fixed GPU buffers for this run.
 bool initializeRenderer(Game& game) {
     if (!glGetString(GL_VERSION) || !loadGl()) return false;
     game.worldProgram=makeProgram(WorldVertexShader,WorldFragmentShader);
@@ -2243,9 +2424,7 @@ bool initializeRenderer(Game& game) {
     game.skyMoonLoc=glGetUniformLocation(game.skyProgram,"uMoonU");
     game.skyMoonlightLoc=glGetUniformLocation(game.skyProgram,"uMoonlight");
 
-    wchar_t executable[MAX_PATH]{};
-    GetModuleFileNameW(nullptr,executable,MAX_PATH);
-    const auto textureDir=std::filesystem::path(executable).parent_path()/L"assets"/L"textures";
+    const auto textureDir=game.executableDirectory/L"assets"/L"textures";
     const auto pbrDir=textureDir/L"pbr";
     game.grassTexture=loadImageTexture(pbrDir/L"forest_ground_diffuse_2k.jpg",GL_REPEAT,GL_REPEAT,3);
     game.grassNormalTexture=loadImageTexture(pbrDir/L"forest_ground_normal_2k.jpg",GL_REPEAT,GL_REPEAT,3);
@@ -2265,6 +2444,10 @@ bool initializeRenderer(Game& game) {
     glGenVertexArrays(1,&game.worldVao); glGenBuffers(1,&game.worldVbo);
     configureVertexArray(game.worldVao,game.worldVbo,false);
     glBufferData(GL_ARRAY_BUFFER,static_cast<GLsizeiptr>(vertices.size()*sizeof(Vertex)),vertices.data(),GL_STATIC_DRAW);
+
+    glGenVertexArrays(1,&game.findVao); glGenBuffers(1,&game.findVbo);
+    configureVertexArray(game.findVao,game.findVbo,false);
+    uploadFindGeometry(game);
 
     glGenVertexArrays(1,&game.routeVao); glGenBuffers(1,&game.routeVbo);
     configureVertexArray(game.routeVao,game.routeVbo,false);
@@ -2298,11 +2481,12 @@ bool initializeRenderer(Game& game) {
     if (!createShadowResources(game)) return false;
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
-    const auto modelDir=std::filesystem::path(executable).parent_path()/L"assets"/L"models";
+    const auto modelDir=game.executableDirectory/L"assets"/L"models";
     loadObjModel(game,modelDir/L"flashlight"/L"Flashlight.obj",game.flashlight);
     return true;
 }
 
+// Update timers, movement/collision, footsteps, pickups, and the exit trigger for one frame.
 void movePlayer(Game& game, float dt) {
     if (!game.started || game.paused || game.won) return;
     game.routeVisible=std::max(0.0f,game.routeVisible-dt);
@@ -2366,12 +2550,12 @@ void movePlayer(Game& game, float dt) {
             game.newRecord=true;
             saveRunRecord(game);
         }
-        regenerateMaze(game);
         captureMouse(game,false);
         playSound(game,L"escape.wav");
     }
 }
 
+// Append a colored screen-space rectangle as two triangles.
 void uiRect(std::vector<UiVertex>& out, int screenW, int screenH, float x, float y,
             float w, float h, std::array<float,4> color) {
     const float x0=2.0f*x/screenW-1.0f, x1=2.0f*(x+w)/screenW-1.0f;
@@ -2396,12 +2580,14 @@ constexpr std::array<std::array<uint8_t,5>,36> Font={{
     {{0x01,0x71,0x09,0x05,0x03}},{{0x36,0x49,0x49,0x49,0x36}},{{0x06,0x49,0x49,0x29,0x1e}}
 }};
 
+// Map supported uppercase letters and digits to the small built-in bitmap font.
 int glyphIndex(char c) {
     if (c>='A' && c<='Z') return c-'A';
     if (c>='0' && c<='9') return 26+c-'0';
     return -1;
 }
 
+// Turn text into bitmap-font rectangles for rendering without external font assets.
 void uiText(std::vector<UiVertex>& out, int screenW, int screenH, const std::string& text,
             float x, float y, float scale, std::array<float,4> color) {
     for (char c:text) {
@@ -2422,13 +2608,16 @@ void uiText(std::vector<UiVertex>& out, int screenW, int screenH, const std::str
     }
 }
 
+// Position a label around the horizontal center of the current screen.
 void centeredText(std::vector<UiVertex>& out, int w, int h, const std::string& text,
                   float y, float scale, std::array<float,4> color) {
     uiText(out,w,h,text,(w-text.size()*7.0f*scale+scale)/2.0f,y,scale,color);
 }
 
+// Build the current title, settings, history, pause, win, or gameplay HUD and draw it.
 void renderUi(Game& game) {
-    std::vector<UiVertex> vertices;
+    std::vector<UiVertex>& vertices=game.uiVertices;
+    vertices.clear();
     const int w=game.width, h=game.height;
     const std::array<float,4> white{0.82f,0.88f,0.90f,1.0f};
     const std::array<float,4> cyan{0.35f,0.85f,0.82f,1.0f};
@@ -2572,6 +2761,7 @@ void renderUi(Game& game) {
     glDisable(GL_BLEND); glEnable(GL_DEPTH_TEST);
 }
 
+// Build a transform matrix from the flashlight's right/up/forward axes and position.
 std::array<float,16> basisTransform(Vec3 right,Vec3 up,Vec3 forward,Vec3 origin,float scale) {
     return {right.x*scale,right.y*scale,right.z*scale,0.0f,
             up.x*scale,up.y*scale,up.z*scale,0.0f,
@@ -2579,6 +2769,7 @@ std::array<float,16> basisTransform(Vec3 right,Vec3 up,Vec3 forward,Vec3 origin,
             origin.x,origin.y,origin.z,1.0f};
 }
 
+// Draw one material-grouped model, such as the flashlight held at the camera.
 void drawModel(Game& game,const ModelObject& object,const std::array<float,16>& transform) {
     if (!object.loaded || object.parts.empty()) return;
     glUniformMatrix4fv(game.modelLoc,1,GL_FALSE,transform.data());
@@ -2593,6 +2784,7 @@ void drawModel(Game& game,const ModelObject& object,const std::array<float,16>& 
     glDisable(GL_BLEND);
 }
 
+// Render flashlight shadows, sky, textured maze, held flashlight, and final 2D interface.
 void render(Game& game) {
     const float bob=game.headBobEnabled?std::sin(game.bobPhase*2.0f)*0.025f*game.movementBob:0.0f;
     Vec3 eye{game.x,1.38f+bob,game.z};
@@ -2630,6 +2822,10 @@ void render(Game& game) {
     glUniformMatrix4fv(game.depthModelLoc,1,GL_FALSE,model.data());
     glBindVertexArray(game.worldVao);
     glDrawArrays(GL_TRIANGLES,0,game.worldVertexCount);
+    if (game.findVertexCount>0) {
+        glBindVertexArray(game.findVao);
+        glDrawArrays(GL_TRIANGLES,0,game.findVertexCount);
+    }
     glBindFramebuffer(GL_FRAMEBUFFER,0);
     glDrawBuffer(GL_BACK);
 
@@ -2684,6 +2880,10 @@ void render(Game& game) {
     glActiveTexture(GL_TEXTURE8); glBindTexture(GL_TEXTURE_2D,game.stoneAoTexture);
     glBindVertexArray(game.worldVao);
     glDrawArrays(GL_TRIANGLES,0,game.worldVertexCount);
+    if (game.findVertexCount>0) {
+        glBindVertexArray(game.findVao);
+        glDrawArrays(GL_TRIANGLES,0,game.findVertexCount);
+    }
     if (game.routeVisible>0.0f && game.routeVertexCount>0) {
         glBindVertexArray(game.routeVao);
         glDrawArrays(GL_TRIANGLES,0,game.routeVertexCount);
@@ -2696,6 +2896,7 @@ void render(Game& game) {
     SwapBuffers(game.dc);
 }
 
+// Parse an optional --seed value so a run can be recreated for debugging or sharing.
 void readSeedArgument(Game& game) {
     const std::wstring command=GetCommandLineW();
     const size_t option=command.find(L"--seed");
@@ -2711,6 +2912,7 @@ void readSeedArgument(Game& game) {
     game.hasRequestedSeed=true;
 }
 
+// Program entry: load saves, create graphics/audio, run the frame loop, then release resources.
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
     Gdiplus::GdiplusStartupInput gdiplusInput;
     ULONG_PTR gdiplusToken=0;

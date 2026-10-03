@@ -1,10 +1,14 @@
+# Local compiler output; CMake regenerates it when building.
 /build/
 /.vs/
+# Per-player settings and run history are created beside the EXE on first use.
 /settings.ini
 /past_runs.csv
 /last_run_trail.csv
+# Ignore model files generally, but keep the flashlight model shipped by the game.
 *.obj
 !assets/models/flashlight/Flashlight.obj
+# Debug symbols and Graphify's temporary/cache files are generated locally.
 *.pdb
 /graphify-out/cache/
 /graphify-out/manifest.json
