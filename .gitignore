@@ -1,5 +1,8 @@
 /build/
 /.vs/
+/settings.ini
+/past_runs.csv
+/last_run_trail.csv
 *.obj
 !assets/models/flashlight/Flashlight.obj
 *.pdb

@@ -165,8 +165,23 @@ struct Vertex {
 struct SkyVertex { float x, y, z, u, v; };
 struct UiVertex { float x, y, r, g, b, a; };
 struct Vec3 { float x, y, z; };
+enum class RunOmen : uint8_t { VeiledMoon, FailingWick, DistantBells, HowlingWind, None };
+enum class TraceKind : uint8_t { ExitClue, BatteryCache, Remnant };
+struct TrailPoint { float x=0.0f, z=0.0f, yaw=0.0f; };
 struct BatteryPickup { float x=0.0f, z=0.0f; bool collected=false; };
-struct PastRun { std::string timestamp; float elapsed=0.0f; int routeUses=0; uint32_t seed=0; };
+struct RuinTrace {
+    float x=0.0f,z=0.0f,hintX=0.0f,hintZ=0.0f;
+    TraceKind kind=TraceKind::Remnant;
+    bool found=false;
+    uint8_t note=0;
+};
+struct PastRun {
+    std::string timestamp;
+    float elapsed=0.0f;
+    int routeUses=0;
+    uint32_t seed=0;
+    RunOmen omen=RunOmen::None;
+};
 struct ModelPart { GLsizei first = 0, count = 0; GLuint texture = 0; std::string material; };
 struct ModelObject { GLuint vao = 0, vbo = 0; std::vector<ModelPart> parts; bool loaded = false; };
 struct WallArc {
@@ -187,9 +202,11 @@ struct SpatialAudio {
     std::array<Buffer,BufferCount> buffers{};
     std::atomic<bool> active{false},enabled{true};
     std::atomic<float> cuePan{0.0f},cueVolume{0.0f};
+    std::atomic<float> windLevel{1.0f},bellPan{0.0f},bellLevel{0.0f};
     uint32_t noiseState=0x8f31a2c7u;
     float filteredNoise=0.0f;
-    double cuePhase=0.0,windPhase=0.0;
+    float bellEnvelope=0.0f,bellCountdown=18.0f;
+    double cuePhase=0.0,windPhase=0.0,bellPhase=0.0;
 
     static void CALLBACK callback(HWAVEOUT,UINT message,DWORD_PTR instance,DWORD_PTR parameter,DWORD_PTR) {
         if (message!=WOM_DONE || !instance) return;
@@ -202,17 +219,35 @@ struct SpatialAudio {
         const bool play=enabled.load(std::memory_order_relaxed);
         const float pan=std::clamp(cuePan.load(std::memory_order_relaxed),-1.0f,1.0f);
         const float volume=std::clamp(cueVolume.load(std::memory_order_relaxed),0.0f,0.3f);
+        const float wind=std::clamp(windLevel.load(std::memory_order_relaxed),0.0f,8.0f);
+        const float bell=std::clamp(bellLevel.load(std::memory_order_relaxed),0.0f,0.15f);
+        const float bellDirection=std::clamp(bellPan.load(std::memory_order_relaxed),-1.0f,1.0f);
         const float leftGain=std::sqrt((1.0f-pan)*0.5f),rightGain=std::sqrt((1.0f+pan)*0.5f);
+        const float leftBellGain=std::sqrt((1.0f-bellDirection)*0.5f),rightBellGain=std::sqrt((1.0f+bellDirection)*0.5f);
         for (int frame=0;frame<FramesPerBuffer;++frame) {
             if (!play) { buffer.samples[frame*2]=buffer.samples[frame*2+1]=0; continue; }
             noiseState^=noiseState<<13; noiseState^=noiseState>>17; noiseState^=noiseState<<5;
             const float noise=static_cast<float>(noiseState&0xffffu)/32767.5f-1.0f;
             filteredNoise+=0.0035f*(noise-filteredNoise);
-            const float wind=filteredNoise*(0.0028f+0.0012f*std::sin(windPhase));
+            const float windSample=filteredNoise*(0.0028f+0.0012f*std::sin(windPhase))*wind;
             const float swell=0.66f+0.34f*std::sin(cuePhase*0.19);
             const float cue=(std::sin(cuePhase)+0.24f*std::sin(cuePhase*1.5))*volume*swell;
-            const float left=std::clamp(wind+cue*leftGain,-0.95f,0.95f);
-            const float right=std::clamp(wind+cue*rightGain,-0.95f,0.95f);
+            float bellSample=0.0f;
+            if (bell>0.0f) {
+                bellCountdown-=1.0f/SampleRate;
+                if (bellCountdown<=0.0f) {
+                    bellEnvelope=1.0f;
+                    const float variation=static_cast<float>((noiseState>>8)&0xffffu)/65535.0f;
+                    bellCountdown=30.0f+variation*28.0f;
+                }
+                bellSample=(std::sin(bellPhase)+0.32f*std::sin(bellPhase*2.76)+
+                            0.14f*std::sin(bellPhase*4.23))*bellEnvelope*bell;
+                bellEnvelope*=0.999985f;
+                bellPhase+=2.0*Pi*587.33/SampleRate;
+                if (bellPhase>2.0*Pi) bellPhase-=2.0*Pi;
+            }
+            const float left=std::clamp(windSample+cue*leftGain+bellSample*leftBellGain,-0.95f,0.95f);
+            const float right=std::clamp(windSample+cue*rightGain+bellSample*rightBellGain,-0.95f,0.95f);
             buffer.samples[frame*2]=static_cast<int16_t>(left*32767.0f);
             buffer.samples[frame*2+1]=static_cast<int16_t>(right*32767.0f);
             cuePhase+=2.0*Pi*212.0/SampleRate;
@@ -265,13 +300,18 @@ struct Game {
     std::vector<WallArc> wallArcs;
     std::vector<RadialWall> radialWalls;
     std::vector<BatteryPickup> batteryPickups;
+    std::vector<RuinTrace> ruinTraces;
     std::vector<PastRun> pastRuns;
+    std::vector<TrailPoint> previousTrail,currentTrail;
     float mazePhaseA = 0.0f, mazePhaseB = 0.0f;
     uint32_t mazeSeed=0, runSeed=0, requestedSeed=0, completedSeed=0, bestSeed=0, runtimeRandom=1;
+    uint32_t previousTrailSeed=0;
+    RunOmen runOmen=RunOmen::None;
     bool hasRequestedSeed=false, newRecord=false, flashlightOn=true, headBobEnabled=true;
     std::filesystem::path executableDirectory;
     std::filesystem::path settingsPath;
     std::filesystem::path pastRunsPath;
+    std::filesystem::path trailPath;
     GLsizei worldVertexCount = 0;
     GLsizei skyVertexCount = 0;
     GLsizei routeVertexCount = 0;
@@ -284,8 +324,10 @@ struct Game {
     bool started = false, paused = false, won = false, mouseCaptured = false, running = true;
     bool showSettings = false, showPastRuns=false, soundEnabled = true;
     int pastRunsPage=0;
+    std::string noticeMessage;
     float bobPhase = 0.0f, movementBob = 0.0f, mouseSensitivity=1.0f;
     float flickerTimer=0.0f, nextFlicker=18.0f, weatherTime=0.0f, cloudCoverage=0.05f;
+    float noticeTimer=0.0f,trailProgress=0.0f;
     int settingsIndex = 0, resolutionIndex = 1, difficultyIndex=1;
     float brightness = 1.0f, contrast = 1.0f;
     bool alternateFootstep = false;
@@ -664,6 +706,64 @@ std::vector<Vertex> buildMaze(const Game& game) {
         addBox(out,pickup.x-0.075f,pickup.x+0.075f,0.19f,0.225f,pickup.z-0.073f,pickup.z+0.073f,
                0.15f,0.78f,0.48f,1.8f,2.0f);
     }
+    for (const RuinTrace& trace:game.ruinTraces) if (!trace.found) {
+        if (trace.kind==TraceKind::ExitClue) {
+            addBox(out,trace.x-0.12f,trace.x+0.12f,0.015f,0.39f,trace.z-0.055f,trace.z+0.055f,
+                   0.28f,0.31f,0.29f,0.0f,1.0f);
+            addBox(out,trace.x-0.075f,trace.x+0.075f,0.18f,0.205f,trace.z-0.064f,trace.z-0.059f,
+                   0.18f,0.46f,0.38f,0.45f,2.0f);
+            addBox(out,trace.x-0.015f,trace.x+0.015f,0.09f,0.30f,trace.z-0.065f,trace.z-0.060f,
+                   0.18f,0.46f,0.38f,0.38f,2.0f);
+        } else if (trace.kind==TraceKind::BatteryCache) {
+            addBox(out,trace.x-0.18f,trace.x+0.18f,0.015f,0.23f,trace.z-0.14f,trace.z+0.14f,
+                   0.24f,0.19f,0.13f,0.0f,1.0f);
+            addBox(out,trace.x-0.19f,trace.x+0.19f,0.15f,0.19f,trace.z-0.15f,trace.z+0.15f,
+                   0.33f,0.26f,0.17f,0.0f,1.0f);
+            addBox(out,trace.x-0.055f,trace.x+0.055f,0.23f,0.27f,trace.z-0.025f,trace.z+0.025f,
+                   0.14f,0.72f,0.42f,1.3f,2.0f);
+        } else {
+            addRubbleChunk(out,{trace.x-0.08f,0.012f,trace.z+0.035f},0.4f,0.16f,0.11f,0.08f);
+            addRubbleChunk(out,{trace.x+0.10f,0.012f,trace.z-0.025f},1.7f,0.12f,0.10f,0.065f);
+            addBox(out,trace.x-0.13f,trace.x+0.13f,0.025f,0.06f,trace.z-0.10f,trace.z+0.10f,
+                   0.25f,0.21f,0.15f,0.0f,1.0f);
+        }
+    }
+    if (!game.previousTrail.empty() && game.previousTrailSeed!=game.mazeSeed) {
+        Vec3 lastMark{};
+        bool haveLastMark=false;
+        for (size_t i=0;i<game.previousTrail.size();++i) {
+            const TrailPoint& point=game.previousTrail[i];
+            const int sourceCol=std::clamp(static_cast<int>(std::floor((HalfMaze-point.x)/Cell)),0,MapSize-1);
+            const int sourceRow=std::clamp(static_cast<int>(std::floor((HalfMaze-point.z)/Cell)),0,MapSize-1);
+            int bestCol=-1,bestRow=-1;
+            float bestDistance=1.0f;
+            for (int row=std::max(0,sourceRow-18);row<=std::min(MapSize-1,sourceRow+18);++row)
+                for (int col=std::max(0,sourceCol-18);col<=std::min(MapSize-1,sourceCol+18);++col) {
+                    if (game.map[row][col]!='.') continue;
+                    const float x=HalfMaze-(col+0.5f)*Cell,z=HalfMaze-(row+0.5f)*Cell;
+                    const float dx=x-point.x,dz=z-point.z,distance=dx*dx+dz*dz;
+                    if (distance<bestDistance) { bestDistance=distance; bestCol=col; bestRow=row; }
+                }
+            if (bestCol<0) continue;
+            const float x=HalfMaze-(bestCol+0.5f)*Cell,z=HalfMaze-(bestRow+0.5f)*Cell;
+            if (haveLastMark && std::hypot(x-lastMark.x,z-lastMark.z)<0.18f) continue;
+            const Vec3 forward{std::cos(point.yaw),0.0f,std::sin(point.yaw)};
+            const Vec3 right{std::sin(point.yaw),0.0f,-std::cos(point.yaw)};
+            for (float side:{-0.075f,0.075f}) {
+                const float cx=x+right.x*side,cz=z+right.z*side;
+                const Vec3 center{cx,0.012f,cz};
+                const Vec3 f{forward.x*0.075f,0.0f,forward.z*0.075f};
+                const Vec3 r{right.x*0.035f,0.0f,right.z*0.035f};
+                addQuad(out,{center.x-f.x-r.x,center.y,center.z-f.z-r.z},
+                        {center.x+f.x-r.x,center.y,center.z+f.z-r.z},
+                        {center.x+f.x+r.x,center.y,center.z+f.z+r.z},
+                        {center.x-f.x+r.x,center.y,center.z-f.z+r.z},
+                        {0,1,0},0.12f,0.44f,0.52f,0.24f,2.0f);
+            }
+            lastMark={x,0.012f,z};
+            haveLastMark=true;
+        }
+    }
     const float gateRadius=boundaryRadius(game,RingCount,ExitAngle)+0.30f;
     const float gateX=std::cos(ExitAngle)*gateRadius, gateZ=std::sin(ExitAngle)*gateRadius;
     addBox(out,gateX-1.08f,gateX-0.95f,0,1.85f,gateZ-0.12f,gateZ+0.12f,0.10f,0.88f,0.72f,1.35f,2.0f);
@@ -714,6 +814,8 @@ bool generateMaze(Game& game) {
     const uint32_t seed=game.hasRequestedSeed?game.requestedSeed:randomDevice();
     game.hasRequestedSeed=false;
     game.mazeSeed=seed;
+    const uint32_t omenBits=seed^(seed>>11)^(seed>>23);
+    game.runOmen=static_cast<RunOmen>(omenBits%4u);
     game.runtimeRandom=seed^0x9e3779b9u;
     if (!game.runtimeRandom) game.runtimeRandom=1;
     std::mt19937 random(seed);
@@ -739,6 +841,7 @@ bool generateMaze(Game& game) {
     if (std::find(visited.begin(),visited.end(),uint8_t{0})!=visited.end()) return false;
 
     game.batteryPickups.clear();
+    game.ruinTraces.clear();
     std::vector<int> deadEnds;
     const int exitNode=rings[RingCount][std::min(sectorsForRing(RingCount)-1,
         static_cast<int>(ExitAngle/(2.0f*Pi)*sectorsForRing(RingCount)))];
@@ -746,12 +849,52 @@ bool generateMaze(Game& game) {
         if (node!=exitNode && passages[node].size()==1) deadEnds.push_back(node);
     std::shuffle(deadEnds.begin(),deadEnds.end(),random);
     const size_t pickupCount=std::min<size_t>(4,deadEnds.size());
+    std::vector<int> batteryNodes;
     for (size_t i=0;i<pickupCount;++i) {
+        batteryNodes.push_back(deadEnds[i]);
         const CellNode node=nodes[deadEnds[i]];
         const float angle=(node.sector+0.5f)*2.0f*Pi/sectorsForRing(node.ring);
         const float inner=boundaryRadius(game,node.ring-1,angle),outer=boundaryRadius(game,node.ring,angle);
         const float radius=(inner+outer)*0.5f;
         game.batteryPickups.push_back({std::cos(angle)*radius,std::sin(angle)*radius,false});
+    }
+
+    std::vector<int> nextTowardExit(nodes.size(),-1);
+    std::queue<int> toExit;
+    nextTowardExit[exitNode]=exitNode;
+    toExit.push(exitNode);
+    while (!toExit.empty()) {
+        const int current=toExit.front();
+        toExit.pop();
+        for (int next:passages[current]) if (nextTowardExit[next]<0) {
+            nextTowardExit[next]=current;
+            toExit.push(next);
+        }
+    }
+    auto nodePosition=[&](int id) {
+        const CellNode node=nodes[id];
+        if (node.ring==0) return std::pair<float,float>{0.0f,0.0f};
+        const float angle=(node.sector+0.5f)*2.0f*Pi/sectorsForRing(node.ring);
+        const float radius=(boundaryRadius(game,node.ring-1,angle)+boundaryRadius(game,node.ring,angle))*0.5f;
+        return std::pair<float,float>{std::cos(angle)*radius,std::sin(angle)*radius};
+    };
+    std::vector<int> traceCells;
+    for (int node=1;node<static_cast<int>(nodes.size());++node) {
+        if (node==exitNode || std::find(batteryNodes.begin(),batteryNodes.end(),node)!=batteryNodes.end()) continue;
+        traceCells.push_back(node);
+    }
+    std::shuffle(traceCells.begin(),traceCells.end(),random);
+    std::array<TraceKind,5> traceKinds={TraceKind::ExitClue,TraceKind::ExitClue,
+                                        TraceKind::BatteryCache,TraceKind::Remnant,TraceKind::Remnant};
+    std::shuffle(traceKinds.begin(),traceKinds.end(),random);
+    const size_t traceCount=std::min(traceCells.size(),traceKinds.size());
+    for (size_t i=0;i<traceCount;++i) {
+        const int node=traceCells[i], next=nextTowardExit[node];
+        if (next<0) continue;
+        const auto [x,z]=nodePosition(node);
+        const auto [hintX,hintZ]=nodePosition(next);
+        game.ruinTraces.push_back({x,z,hintX,hintZ,traceKinds[i],false,
+                                   static_cast<uint8_t>(random()%4u)});
     }
 
     auto wrap=[&](float angle) { return std::atan2(std::sin(angle),std::cos(angle)); };
@@ -895,6 +1038,7 @@ bool loadMap(Game& game) {
     game.executableDirectory=std::filesystem::path(path).parent_path();
     game.settingsPath=game.executableDirectory/L"settings.ini";
     game.pastRunsPath=game.executableDirectory/L"past_runs.csv";
+    game.trailPath=game.executableDirectory/L"last_run_trail.csv";
     game.resolutionIndex=std::clamp(static_cast<int>(GetPrivateProfileIntW(L"Video",L"Resolution",1,game.settingsPath.c_str())),0,3);
     game.brightness=std::clamp(GetPrivateProfileIntW(L"Video",L"Brightness",100,game.settingsPath.c_str())/100.0f,0.5f,1.5f);
     game.contrast=std::clamp(GetPrivateProfileIntW(L"Video",L"Contrast",100,game.settingsPath.c_str())/100.0f,0.5f,1.5f);
@@ -958,6 +1102,16 @@ void formatTime(float elapsed, char* out) {
     wsprintfA(out,"%02d:%02d",seconds/60,seconds%60);
 }
 
+const char* runOmenName(RunOmen omen) {
+    switch (omen) {
+    case RunOmen::VeiledMoon: return "VEILED MOON";
+    case RunOmen::FailingWick: return "FAILING WICK";
+    case RunOmen::DistantBells: return "DISTANT BELLS";
+    case RunOmen::HowlingWind: return "HOWLING WIND";
+    default: return "OLD RUN";
+    }
+}
+
 void captureMouse(Game& game, bool capture) {
     game.mouseCaptured=capture;
     if (capture) {
@@ -993,7 +1147,16 @@ void resetRunState(Game& game) {
     game.flashlightOn=true;
     game.flickerTimer=0.0f;
     game.nextFlicker=26.0f+randomUnit(game)*22.0f;
+    if (game.runOmen==RunOmen::FailingWick) game.nextFlicker*=0.58f;
     game.newRecord=false;
+}
+
+void startTrail(Game& game) {
+    game.currentTrail.clear();
+    game.currentTrail.push_back({game.x,game.z,game.yaw});
+    game.trailProgress=0.0f;
+    game.noticeMessage.clear();
+    game.noticeTimer=0.0f;
 }
 
 void saveRunRecord(Game& game) {
@@ -1011,11 +1174,18 @@ void loadPastRuns(Game& game) {
         std::istringstream row(line);
         std::string timestamp,elapsedText,routeText,seedText;
         if (!std::getline(row,timestamp,',') || !std::getline(row,elapsedText,',') ||
-            !std::getline(row,routeText,',') || !std::getline(row,seedText)) continue;
+            !std::getline(row,routeText,',') || !std::getline(row,seedText,',')) continue;
         try {
             const unsigned long seed=std::stoul(seedText);
             if (seed>std::numeric_limits<uint32_t>::max()) continue;
-            game.pastRuns.push_back({timestamp,std::stof(elapsedText),std::stoi(routeText),static_cast<uint32_t>(seed)});
+            RunOmen omen=RunOmen::None;
+            std::string omenText;
+            if (std::getline(row,omenText)) {
+                const int savedOmen=std::stoi(omenText);
+                if (savedOmen>=0 && savedOmen<4) omen=static_cast<RunOmen>(savedOmen);
+            }
+            game.pastRuns.push_back({timestamp,std::stof(elapsedText),std::stoi(routeText),
+                                     static_cast<uint32_t>(seed),omen});
         } catch (const std::exception&) {
             continue;
         }
@@ -1028,13 +1198,54 @@ void recordPastRun(Game& game) {
     char timestamp[32]{};
     wsprintfA(timestamp,"%04u %02u %02u %02u:%02u:%02u",localTime.wYear,localTime.wMonth,
               localTime.wDay,localTime.wHour,localTime.wMinute,localTime.wSecond);
-    PastRun run{timestamp,game.elapsed,game.routeUses,game.completedSeed};
+    PastRun run{timestamp,game.elapsed,game.routeUses,game.completedSeed,game.runOmen};
     std::ofstream file(game.pastRunsPath,std::ios::app);
-    if (file) file<<run.timestamp<<','<<run.elapsed<<','<<run.routeUses<<','<<run.seed<<'\n';
+    if (file) file<<run.timestamp<<','<<run.elapsed<<','<<run.routeUses<<','<<run.seed<<','
+                  <<static_cast<int>(run.omen)<<'\n';
     game.pastRuns.push_back(std::move(run));
 }
 
-void collectBatteries(Game& game) {
+void loadPreviousTrail(Game& game) {
+    std::ifstream file(game.trailPath);
+    std::string line;
+    while (std::getline(file,line)) {
+        if (line.rfind("SEED,",0)==0) {
+            try {
+                const unsigned long seed=std::stoul(line.substr(5));
+                if (seed<=std::numeric_limits<uint32_t>::max()) game.previousTrailSeed=static_cast<uint32_t>(seed);
+            } catch (const std::exception&) {}
+            continue;
+        }
+        std::istringstream row(line);
+        std::string xText,zText,yawText;
+        if (!std::getline(row,xText,',') || !std::getline(row,zText,',') || !std::getline(row,yawText)) continue;
+        try {
+            TrailPoint point{std::stof(xText),std::stof(zText),std::stof(yawText)};
+            if (std::isfinite(point.x) && std::isfinite(point.z) && std::isfinite(point.yaw) &&
+                game.previousTrail.size()<2400) game.previousTrail.push_back(point);
+        } catch (const std::exception&) {
+            continue;
+        }
+    }
+}
+
+void savePreviousTrail(Game& game) {
+    if (game.currentTrail.empty()) game.currentTrail.push_back({game.x,game.z,game.yaw});
+    else {
+        const TrailPoint& last=game.currentTrail.back();
+        if (std::hypot(game.x-last.x,game.z-last.z)>0.18f)
+            game.currentTrail.push_back({game.x,game.z,game.yaw});
+    }
+    game.previousTrail=game.currentTrail;
+    game.previousTrailSeed=game.runSeed;
+    std::ofstream file(game.trailPath,std::ios::trunc);
+    if (!file) return;
+    file<<"SEED,"<<game.previousTrailSeed<<'\n';
+    for (const TrailPoint& point:game.previousTrail)
+        file<<point.x<<','<<point.z<<','<<point.yaw<<'\n';
+}
+
+void collectNearbyFinds(Game& game) {
     bool changed=false;
     for (BatteryPickup& pickup:game.batteryPickups) {
         if (pickup.collected) continue;
@@ -1044,6 +1255,33 @@ void collectBatteries(Game& game) {
         ++game.batteryCount;
         playSound(game,L"battery_pickup.wav");
         changed=true;
+    }
+    for (RuinTrace& trace:game.ruinTraces) {
+        if (trace.found) continue;
+        const float dx=game.x-trace.x,dz=game.z-trace.z;
+        if (dx*dx+dz*dz>0.68f*0.68f) continue;
+        trace.found=true;
+        changed=true;
+        game.noticeTimer=5.0f;
+        if (trace.kind==TraceKind::ExitClue) {
+            const float angle=std::atan2(trace.hintZ-game.z,trace.hintX-game.x);
+            const float relative=std::atan2(std::sin(angle-game.yaw),std::cos(angle-game.yaw));
+            const char* direction=std::abs(relative)<0.52f?"AHEAD":
+                (std::abs(relative)>2.62f?"BEHIND":(relative>0.0f?"RIGHT":"LEFT"));
+            game.noticeMessage=std::string("SCRATCHED ARROW: EXIT PATH IS TO YOUR ")+direction;
+        } else if (trace.kind==TraceKind::BatteryCache) {
+            ++game.batteryCount;
+            game.noticeMessage="ABANDONED PACK: ONE BATTERY CELL ADDED";
+            playSound(game,L"battery_pickup.wav");
+        } else {
+            constexpr const char* notes[]={
+                "A NAME IS CUT INTO THE STONE. NO ONE ANSWERS",
+                "A COLD CAMPFIRE STILL SMELLS OF SMOKE",
+                "THREE SCRATCHES MARK THE WALL. NOTHING ELSE",
+                "A TORN MAP ENDS BEFORE THE EXIT"
+            };
+            game.noticeMessage=notes[trace.note%4];
+        }
     }
     if (changed) uploadMazeGeometry(game);
 }
@@ -1062,9 +1300,11 @@ void updateFlashlight(Game& game,float dt) {
     game.nextFlicker-=dt;
     if (game.nextFlicker<=0.0f) {
         game.flickerTimer=0.42f+randomUnit(game)*0.22f;
+        if (game.runOmen==RunOmen::FailingWick) game.flickerTimer+=0.20f;
         float delay=game.difficultyIndex==0?35.0f:(game.difficultyIndex==1?24.0f:15.0f);
         delay+=randomUnit(game)*(game.difficultyIndex==0?24.0f:(game.difficultyIndex==1?19.0f:12.0f));
         if (game.batteryCharge<20.0f) delay*=0.42f;
+        if (game.runOmen==RunOmen::FailingWick) delay*=0.58f;
         game.nextFlicker=delay;
         playSound(game,L"flashlight_flicker.wav");
     }
@@ -1076,7 +1316,13 @@ void updateAtmosphere(Game& game,float dt) {
     const float cloudWave=0.5f+0.48f*std::sin(game.weatherTime*0.026f-Pi*0.5f)
                          +0.035f*std::sin(game.weatherTime*0.071f+0.8f);
     game.cloudCoverage=std::clamp(cloudWave,0.04f,0.96f);
+    if (game.runOmen==RunOmen::VeiledMoon) game.cloudCoverage=std::max(game.cloudCoverage,0.84f);
     game.spatialAudio.enabled.store(game.soundEnabled,std::memory_order_relaxed);
+    const bool activeRun=game.started && !game.paused && !game.won;
+    game.spatialAudio.windLevel.store(activeRun && game.runOmen==RunOmen::HowlingWind?6.5f:1.0f,
+                                      std::memory_order_relaxed);
+    game.spatialAudio.bellLevel.store(activeRun && game.soundEnabled && game.runOmen==RunOmen::DistantBells?0.052f:0.0f,
+                                      std::memory_order_relaxed);
     if (!game.soundEnabled || !game.started || game.paused || game.won || game.showSettings) {
         game.spatialAudio.cueVolume.store(0.0f,std::memory_order_relaxed);
         return;
@@ -1087,6 +1333,7 @@ void updateAtmosphere(Game& game,float dt) {
     const float distance=std::hypot(dx,dz);
     const float pan=(std::sin(game.yaw)*dx-std::cos(game.yaw)*dz)/std::max(distance,0.001f);
     game.spatialAudio.cuePan.store(pan,std::memory_order_relaxed);
+    game.spatialAudio.bellPan.store(pan,std::memory_order_relaxed);
     constexpr float fadeStart=4.0f, cutoffRadius=7.0f;
     if (distance>=cutoffRadius) {
         game.spatialAudio.cueVolume.store(0.0f,std::memory_order_relaxed);
@@ -1108,6 +1355,7 @@ void restart(Game& game) {
     game.stepDistance=0.0f;
     game.bobPhase=game.movementBob=0.0f;
     resetRunState(game);
+    startTrail(game);
     captureMouse(game,true);
     SetFocus(game.window);
 }
@@ -1117,6 +1365,7 @@ void beginGame(Game& game) {
     game.paused=false;
     game.movementBob=0.0f;
     resetRunState(game);
+    startTrail(game);
     playSound(game,L"menu.wav");
     captureMouse(game,true);
     SetFocus(game.window);
@@ -1130,6 +1379,10 @@ void returnToMenu(Game& game) {
     game.routeVisible=game.routeCooldown=0.0f;
     game.stepDistance=0.0f;
     game.bobPhase=game.movementBob=0.0f;
+    game.noticeMessage.clear();
+    game.noticeTimer=0.0f;
+    game.currentTrail.clear();
+    game.trailProgress=0.0f;
     captureMouse(game,false);
     playSound(game,L"menu.wav");
 }
@@ -1396,6 +1649,10 @@ LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lPa
                 game->showPastRuns=true;
                 game->pastRunsPage=0;
                 captureMouse(*game,false);
+            } else if (!game->started && (wParam==VK_LEFT || wParam==VK_RIGHT)) {
+                const int direction=wParam==VK_RIGHT?1:-1;
+                game->difficultyIndex=(game->difficultyIndex+direction+3)%3;
+                saveSettings(*game);
             } else if (!game->started && (wParam==VK_RETURN || wParam==VK_SPACE)) {
                 beginGame(*game);
             } else if (wParam=='R' && game->won) restart(*game);
@@ -2050,6 +2307,8 @@ void movePlayer(Game& game, float dt) {
     if (!game.started || game.paused || game.won) return;
     game.routeVisible=std::max(0.0f,game.routeVisible-dt);
     game.routeCooldown=std::max(0.0f,game.routeCooldown-dt);
+    game.noticeTimer=std::max(0.0f,game.noticeTimer-dt);
+    if (game.noticeTimer<=0.0f) game.noticeMessage.clear();
     game.elapsed+=dt;
     updateFlashlight(game,dt);
     const float forward=(GetAsyncKeyState('W')<0?1.0f:0.0f)-(GetAsyncKeyState('S')<0?1.0f:0.0f);
@@ -2057,7 +2316,7 @@ void movePlayer(Game& game, float dt) {
     if (forward==0.0f && side==0.0f) {
         game.stepDistance=0.0f;
         game.movementBob=std::max(0.0f,game.movementBob-dt*7.0f);
-        collectBatteries(game);
+        collectNearbyFinds(game);
         return;
     }
     const float length=std::sqrt(forward*forward+side*side);
@@ -2074,6 +2333,12 @@ void movePlayer(Game& game, float dt) {
         if (canStand(game,game.x,game.z+stepZ)) game.z+=stepZ;
     }
     const float moved=std::hypot(game.x-oldX,game.z-oldZ);
+    game.trailProgress+=moved;
+    while (game.trailProgress>=0.55f && game.currentTrail.size()<2400) {
+        game.currentTrail.push_back({game.x,game.z,game.yaw});
+        game.trailProgress-=0.55f;
+    }
+    if (game.currentTrail.size()>=2400) game.trailProgress=0.0f;
     game.stepDistance+=moved;
     game.movementBob=std::clamp(game.movementBob+(moved>0.0001f?dt*8.0f:-dt*7.0f),0.0f,1.0f);
     if (moved>0.0001f) game.bobPhase=std::fmod(game.bobPhase+dt*(sprinting?13.0f:10.0f),2.0f*Pi);
@@ -2084,7 +2349,7 @@ void movePlayer(Game& game, float dt) {
             playSound(game,game.alternateFootstep?L"step2.wav":L"step1.wav");
         game.alternateFootstep=!game.alternateFootstep;
     }
-    collectBatteries(game);
+    collectNearbyFinds(game);
 
     const float radius=std::hypot(game.x,game.z);
     const float angle=std::atan2(game.z,game.x);
@@ -2093,6 +2358,7 @@ void movePlayer(Game& game, float dt) {
     if (radius>=exitRadius+0.10f && std::abs(delta)*exitRadius<=DoorHalfWidth+0.45f) {
         game.won=true;
         game.completedSeed=game.runSeed;
+        savePreviousTrail(game);
         recordPastRun(game);
         if (game.bestTime<=0.0f || game.elapsed<game.bestTime) {
             game.bestTime=game.elapsed;
@@ -2203,7 +2469,7 @@ void renderUi(Game& game) {
         uiRect(vertices,w,h,cx-470,cy-270,940,540,{0.012f,0.025f,0.030f,0.98f});
         uiRect(vertices,w,h,cx-470,cy-270,940,5,{0.25f,0.88f,0.67f,1.0f});
         centeredText(vertices,w,h,"PAST RUNS",cy-235,3.2f,green);
-        centeredText(vertices,w,h,"COMPLETION TIME   RUN TIME   ROUTE FINDS   MAZE SEED",cy-193,1.15f,cyan);
+        centeredText(vertices,w,h,"COMPLETION TIME   RUN TIME   ROUTE FINDS   OMEN   MAZE SEED",cy-193,1.05f,cyan);
         if (game.pastRuns.empty()) {
             centeredText(vertices,w,h,"NO COMPLETED RUNS YET",cy-70,1.7f,white);
         } else {
@@ -2215,7 +2481,7 @@ void renderUi(Game& game) {
                 formatTime(run.elapsed,runTime);
                 wsprintfA(routeCount,"%02d",run.routeUses);
                 const std::string row=run.timestamp+"  TIME "+runTime+"  ROUTE "+routeCount+
-                                      "  SEED "+std::to_string(run.seed);
+                                      "  OMEN "+runOmenName(run.omen)+"  SEED "+std::to_string(run.seed);
                 uiRect(vertices,w,h,cx-430,cy-168+i*29.0f,860,25,
                        {0.025f,0.060f,0.064f,(i%2==0)?0.70f:0.38f});
                 uiText(vertices,w,h,row,cx-418,cy-162+i*29.0f,1.05f,white);
@@ -2231,18 +2497,22 @@ void renderUi(Game& game) {
         uiRect(vertices,w,h,0,0,static_cast<float>(w),static_cast<float>(h),{0.002f,0.006f,0.010f,0.78f});
         uiRect(vertices,w,h,cx-270,cy-170,540,340,{0.012f,0.025f,0.030f,0.97f});
         uiRect(vertices,w,h,cx-270,cy-170,540,5,{0.25f,0.88f,0.67f,1.0f});
-        centeredText(vertices,w,h,"MAZE ESCAPE",cy-125,3.5f,green);
-        centeredText(vertices,w,h,"FIND THE EXIT",cy-77,1.8f,white);
+        centeredText(vertices,w,h,"MAZE ESCAPE",cy-129,3.5f,green);
+        centeredText(vertices,w,h,"FIND THE EXIT",cy-83,1.8f,white);
         if (game.bestTime>0.0f) {
             char record[32]{}; formatTime(game.bestTime,record);
-            centeredText(vertices,w,h,std::string("BEST ")+record,cy-48,1.0f,green);
-        } else centeredText(vertices,w,h,"NO RECORD YET",cy-48,1.0f,white);
-        centeredText(vertices,w,h,"SEED "+std::to_string(game.mazeSeed),cy-27,0.95f,cyan);
-        uiRect(vertices,w,h,cx-190,cy-5,380,52,{0.08f,0.32f,0.28f,1.0f});
-        centeredText(vertices,w,h,"ENTER OR CLICK TO PLAY",cy+13,1.3f,green);
-        centeredText(vertices,w,h,"P PAST RUNS",cy+72,1.15f,cyan);
-        centeredText(vertices,w,h,"S SETTINGS",cy+102,1.15f,cyan);
-        centeredText(vertices,w,h,"ESC TO CLOSE",cy+132,1.0f,cyan);
+            centeredText(vertices,w,h,std::string("BEST ")+record,cy-58,1.0f,green);
+        } else centeredText(vertices,w,h,"NO RECORD YET",cy-58,1.0f,white);
+        centeredText(vertices,w,h,"SEED "+std::to_string(game.mazeSeed),cy-39,0.95f,cyan);
+        centeredText(vertices,w,h,std::string("OMEN ")+runOmenName(game.runOmen),cy-20,0.95f,cyan);
+        const char* difficultyNames[]={"EASY","NORMAL","HARD"};
+        centeredText(vertices,w,h,std::string("DIFFICULTY ")+difficultyNames[game.difficultyIndex]+" LEFT RIGHT",
+                     cy,0.90f,white);
+        uiRect(vertices,w,h,cx-190,cy+12,380,52,{0.08f,0.32f,0.28f,1.0f});
+        centeredText(vertices,w,h,"ENTER OR CLICK TO PLAY",cy+30,1.3f,green);
+        centeredText(vertices,w,h,"P PAST RUNS",cy+83,1.15f,cyan);
+        centeredText(vertices,w,h,"S SETTINGS",cy+111,1.15f,cyan);
+        centeredText(vertices,w,h,"ESC TO CLOSE",cy+139,1.0f,cyan);
     } else if (game.won) {
         uiRect(vertices,w,h,w*0.5f-310,h*0.5f-152,620,304,{0.004f,0.012f,0.018f,0.92f});
         centeredText(vertices,w,h,"YOU ESCAPED!",h*0.5f-126,3.6f,green);
@@ -2252,7 +2522,9 @@ void renderUi(Game& game) {
         if (game.newRecord) centeredText(vertices,w,h,"NEW PERSONAL BEST",h*0.5f-10,1.45f,green);
         char routeCount[32]{}; wsprintfA(routeCount,"ROUTE REVEALS %02d",game.routeUses);
         centeredText(vertices,w,h,routeCount,h*0.5f+20,1.25f,white);
-        centeredText(vertices,w,h,"R TO RESTART",h*0.5f+54,1.5f,cyan);
+        centeredText(vertices,w,h,"R NEW MAZE",h*0.5f+54,1.5f,cyan);
+        centeredText(vertices,w,h,"ESC RETURN TO TITLE",h*0.5f+82,1.15f,white);
+        centeredText(vertices,w,h,"P PAST RUNS FROM TITLE",h*0.5f+108,1.0f,cyan);
     } else if (game.paused) {
         uiRect(vertices,w,h,0,0,static_cast<float>(w),static_cast<float>(h),{0.002f,0.006f,0.010f,0.72f});
         centeredText(vertices,w,h,"PAUSED",h*0.5f-48,4.0f,white);
@@ -2284,6 +2556,10 @@ void renderUi(Game& game) {
         if (game.routeCooldown>0.0f) wsprintfA(skillText,"O %02dS",static_cast<int>(std::ceil(game.routeCooldown)));
         else lstrcpyA(skillText,"O READY");
         uiText(vertices,w,h,skillText,skillX+12,skillY+29,1.35f,game.routeCooldown>0.0f?white:green);
+        if (game.noticeTimer>0.0f && !game.noticeMessage.empty()) {
+            uiRect(vertices,w,h,w*0.5f-390,static_cast<float>(h)-124.0f,780,40,{0.004f,0.012f,0.018f,0.88f});
+            centeredText(vertices,w,h,game.noticeMessage,static_cast<float>(h)-112.0f,0.95f,cyan);
+        }
         uiRect(vertices,w,h,w*0.5f-5,h*0.5f-1,10,2,{0.42f,0.87f,0.82f,0.9f});
         uiRect(vertices,w,h,w*0.5f-1,h*0.5f-5,2,10,{0.42f,0.87f,0.82f,0.9f});
     }
@@ -2450,6 +2726,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int) {
         return 1;
     }
     loadPastRuns(game);
+    loadPreviousTrail(game);
     if (!createWindowAndContext(game,instance)) {
         MessageBoxW(nullptr,L"Could not create an OpenGL 3.3 window/context.",L"Maze Escape",MB_OK|MB_ICONERROR);
         Gdiplus::GdiplusShutdown(gdiplusToken);
