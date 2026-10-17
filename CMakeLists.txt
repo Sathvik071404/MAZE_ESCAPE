@@ -13,7 +13,9 @@ target_compile_definitions(MazeEscape PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_ME
 # These system libraries provide OpenGL, the window, WAV playback, and image decoding.
 target_link_libraries(MazeEscape PRIVATE opengl32 user32 gdi32 winmm gdiplus)
 # Copy textures, sounds, and the flashlight model beside the EXE for offline play.
+# Clear the destination first so removed source assets cannot linger in old builds.
 add_custom_command(TARGET MazeEscape POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:MazeEscape>/assets"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/assets"
         "$<TARGET_FILE_DIR:MazeEscape>/assets")
